@@ -10,3 +10,4 @@ application.macosx
 out
 .lxproject
 *.lxp
+*.log
