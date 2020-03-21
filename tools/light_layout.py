@@ -76,6 +76,51 @@ def polygon_flattener(polygon):
     return flattener
 
 
+def orient_flat_triangle(flattened):
+    lengths = [
+        (flattened[i] - flattened[(i+1) % TRI_VERTS]).magnitude
+        for i in range(TRI_VERTS)
+    ]
+    logging.debug(f"Lengths: \n{pformat(lengths)}")
+    ratios = [
+        lengths[i]/lengths[(i+1) % TRI_VERTS]
+        for i in range(TRI_VERTS)
+    ]
+    logging.debug(f"Ratios: \n{pformat(ratios)}")
+    equalities = [
+        np.isclose(ratio, 1, atol=ATOL)
+        for ratio in ratios
+    ]
+    logging.debug(f"Equalities: {equalities}")
+    tri_type = {3: 'EQU', 1: 'ISO'}.get(len(list(filter(None, equalities))), 'OTH')
+    logging.debug(f"Type: {tri_type}")
+    equal_index = equalities.index(True) if tri_type == 'ISO' else 0
+    logging.debug(f"Equal Index: {equal_index}")
+    ori = orientation(*flattened)
+    logging.debug(f"Orientation: {ori}")
+    oriented = flattened[equal_index:] + flattened[:equal_index]
+    if ori > 0:
+        oriented[0], oriented[2] = oriented[2], oriented[0]
+    logging.debug(f"Oriented: {ENDLTAB + ENDLTAB.join(map(format_vector, oriented))}")
+    return oriented, tri_type
+
+
+def get_normaliser(oriented):
+    """
+    Form a matrix based on the oriented points which transforms points on the X-Y plane so that
+    oriented[2] is at the origin, and oriented[0] is at the X-axis
+    """
+    translation = Matrix.Translation(-oriented[2]).to_4x4()
+    logging.debug(f"Translation Matrix: \n{translation}")
+    angle_x = (oriented[0]-oriented[2]).to_2d().angle_signed(X_AXIS_2D)
+    logging.debug(f"Angle X: {angle_x}")
+    rotation = Matrix.Rotation(-angle_x, 4, 'Z')
+    logging.debug(f"Rotation Matrix: \n{rotation}")
+    normaliser = rotation @ translation
+    logging.debug(f"Normaliser Matrix: \n{normaliser}")
+    return normaliser
+
+
 def get_leds(obj, polygon):
     logging.debug(f"Center (local): {ENDLTAB + format_vector(polygon.center)}")
     logging.debug(f"Normal (local): {ENDLTAB + format_vector(polygon.normal)}")
@@ -99,48 +144,10 @@ def get_leds(obj, polygon):
     ]
     assert all(z_zero), f"all should be true: {[vertex.z for vertex in flattened]}"
 
-    # Convert points to 2D to simplify geometry
-
-    flattened = [
-        vertex.to_2d() for vertex in flattened
-    ]
-    lengths = [
-        (flattened[i] - flattened[(i+1) % TRI_VERTS]).magnitude
-        for i in range(TRI_VERTS)
-    ]
-    logging.debug(f"Lengths: \n{pformat(lengths)}")
-    ratios = [
-        lengths[i]/lengths[(i+1) % TRI_VERTS]
-        for i in range(TRI_VERTS)
-    ]
-    logging.debug(f"Ratios: \n{pformat(ratios)}")
-    equalities = [
-        np.isclose(ratio, 1, atol=ATOL)
-        for ratio in ratios
-    ]
-    logging.debug(f"Equalities: {equalities}")
-    tri_type = {3: 'EQU', 1: 'ISO'}.get(len(list(filter(None, equalities))), 'OTH')
-    logging.debug(f"Type: {tri_type}")
-    equal_index = equalities.index(True) if tri_type == 'ISO' else 0
-    logging.debug(f"Equal Index: {equal_index}")
-    flattened = flattened[equal_index:] + flattened[:equal_index]
-    orientation_ = orientation(*flattened)
-    logging.debug(f"Orientation: {orientation_}")
-    if orientation_ > 0:
-        flattened[0], flattened[2] = flattened[2], flattened[0]
-    logging.debug(f"Flattened: {ENDLTAB + ENDLTAB.join(map(format_vector, flattened))}")
-    normalised = [
-        point - flattened[2]
-        for point in flattened
-    ]
-    logging.debug(f"Normalised: {ENDLTAB + ENDLTAB.join(map(format_vector, normalised))}")
-    angle_x = normalised[0].angle_signed(X_AXIS_2D)
-    logging.debug(f"Angle X: {angle_x}")
-    rotation_2d = Matrix.Rotation(-1 * angle_x, 2)
-    normalised = [
-        rotation_2d @ point
-        for point in normalised
-    ]
+    # Normalise points to simplify geometry
+    oriented, tri_type = orient_flat_triangle(flattened)
+    normaliser = get_normaliser(oriented)
+    normalised = [normaliser @ point for point in oriented]
     logging.debug(f"Normalised: {ENDLTAB + ENDLTAB.join(map(format_vector, normalised))}")
 
     # Use Normalised points to generate lights on triangle
@@ -169,21 +176,11 @@ def get_leds(obj, polygon):
         half_horizontal_lines = floor((tri_midpoint - row_start) / local_spacing) - 1
         for horizontal_idx in range(-half_horizontal_lines, half_horizontal_lines + 1):
             pixel_x = tri_midpoint + horizontal_idx * local_spacing
-            lights_2d.append(Vector((pixel_x, pixel_y)))
+            lights_2d.append(Vector((pixel_x, pixel_y, Z_OFFSET)))
 
     logging.debug(f"Lights 2D: {ENDLTAB + ENDLTAB.join(map(format_vector, lights_2d))}")
-    lights_2d = [
-        rotation_2d.inverted() @ point + flattened[2]
-        for point in lights_2d
-    ]
-    logging.debug(f"Lights 2D: {ENDLTAB + ENDLTAB.join(map(format_vector, lights_2d))}")
-    offset = Vector((0, 0, Z_OFFSET))
-    lights_3d = [
-        flattener.inverted() @ (point.to_3d() + offset)
-        for point in lights_2d
-    ]
-    logging.debug(
-        f"Lights 3D ({len(lights_3d)}): " + ENDLTAB + ENDLTAB.join(map(format_vector, lights_3d)))
+    lights_3d = [flattener.inverted() @ normaliser.inverted() @ point for point in lights_2d]
+    logging.debug(f"Lights 3D: {ENDLTAB + ENDLTAB.join(map(format_vector, lights_3d))}")
     return lights_3d
 
 
