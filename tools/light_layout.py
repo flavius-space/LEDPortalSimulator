@@ -1,14 +1,11 @@
-import json
+import inspect
 import logging
 import os
-import re
-from contextlib import contextmanager
+import sys
 from datetime import datetime
-from functools import partial
-from math import floor, nan
+from math import floor
 from pprint import pformat
 
-import coloredlogs
 import numpy as np
 
 import bpy
@@ -16,63 +13,24 @@ from mathutils import Matrix, Vector
 
 Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
-
-Z_AXIS_3D = Vector((0, 0, 1))
-X_AXIS_2D = Vector((1, 0))
-TRI_VERTS = 3
-ENDLTAB = "\n\t"
-ATOL = 1e-4
 # LED_SPACING = 1.0/16
 LED_SPACING = 0.050
 DEBUG = False
-LOG_FILE = os.path.splitext(os.path.basename(__file__))[0] + '.log'
-LOG_STREAM_FMT = "%(asctime)s %(levelname)s %(message)s"
-DATA_PATH = 'LEDPortalSimulator/data'
-
-
-@contextmanager
-def mode_set(mode):
-    prev_mode = bpy.context.object.mode
-    try:
-        bpy.ops.object.mode_set(mode=mode)
-        yield
-    finally:
-        bpy.ops.object.mode_set(mode=prev_mode)
+THIS_FILE = inspect.stack()[-2].filename
+THIS_DIR = os.path.dirname(THIS_FILE)
+try:
+    PATH = sys.path[:]
+    sys.path.insert(0, THIS_DIR)
+    from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
+                        X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json)
+finally:
+    sys.path = PATH
+LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 
 
 def orientation(*vec):
     assert len(vec) == 3
     return (vec[1].y - vec[0].y)*(vec[2].x - vec[1].x) - (vec[2].y - vec[1].y)*(vec[1].x - vec[0].x)
-
-
-def format_vector(vec):
-    mag = vec.magnitude
-    if len(vec) == 3:
-        theta = vec.to_2d().angle_signed(X_AXIS_2D) if mag > 0 else nan
-        phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
-        return f"C({vec.x: 2.3f}, {vec.y: 2.3f}, {vec.z: 2.3f}) " \
-            f"P({mag: 2.3f}, {theta: 2.3f}, {phi: 2.3f})"
-    elif len(vec) == 2:
-        theta = vec.angle_signed(X_AXIS_2D) if mag > 0 else nan
-        return f"C({vec.x: 2.3f}, {vec.y: 2.3f}) " \
-            f"P({mag: 2.3f}, {theta: 2.3f})"
-
-
-def format_matrix(mat, name="Matrix", indent=1):
-    loc, rot, scale = mat.decompose()
-    out = '\n'.join([
-        f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
-        f"{name} Location:" + ENDLTAB + pformat(loc).replace('\n', '\n\t'),
-        f"{name} Rotation:" + ENDLTAB + pformat(rot).replace('\n', '\n\t'),
-        f"{name} Scale:" + ENDLTAB + pformat(scale).replace('\n', '\n\t'),
-    ])
-    return out.replace('\n', ('\n' + (indent * '\t')))
-
-
-def get_scale_factor(matrix):
-    factors = matrix.to_scale()
-    assert all(map(partial(np.isclose, factors[0], atol=ATOL), factors[1:]))
-    return sum(factors)/len(factors)
 
 
 def plane_flattener(center, normal):
@@ -201,54 +159,8 @@ def normalise_triangle(center, normal, vertices):
     return flattener.inverted() @ normaliser.inverted(), normalised
 
 
-def split_scale(matrix):
-    """
-    Split a matrix into two matrices such that:
-    - `scale` performs a homogenous scale and no other transformations
-    - `transform` performs all other transformations
-    - `scale @ transform` is equivalent to `matrix`
-    """
-    scale = Matrix.Scale(get_scale_factor(matrix), 4)
-    transform = scale.inverted() @ matrix
-    return scale, transform
-
-
-def setup_logger():
-    logger = logging.getLogger()
-    while logger.handlers:
-        logger.removeHandler(logger.handlers[0])
-    logger.setLevel(logging.DEBUG)
-    file_handler = logging.FileHandler(LOG_FILE, 'w')
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
-    if os.name != 'nt':
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.INFO)
-        stream_handler.setFormatter(coloredlogs.ColoredFormatter(LOG_STREAM_FMT))
-        logger.addHandler(stream_handler)
-
-
-def serialise_vector(vec):
-    return vec[:]
-
-
-def serialise_matrix(mat):
-    return [serialise_vector(vec) for vec in mat]
-
-
-def export_json(obj, panels):
-    model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
-    obj_name = obj.name
-    sanitised, _ = re.subn(r"\W+", "_", f"{model_name}_{obj_name}")
-    sanitised = os.path.join(DATA_PATH, f"{sanitised}.json")
-    logging.info(f"exporting {len(panels)} panels to {sanitised}")
-    __import__('pdb').set_trace()
-    with open(sanitised, 'w') as stream:
-        json.dump({'panels': panels}, stream, indent=4)
-
-
 def main():
-    setup_logger()
+    setup_logger(LOG_FILE)
     logging.info(f"*** Starting Light Layout {datetime.now().isoformat()} ***")
     obj = bpy.context.object
     logging.info(f"Selected object: {obj}")
@@ -308,6 +220,7 @@ def main():
             lamp_object.location = panel_matrix @ position
             coll.objects.link(lamp_object)
 
+    logging.info(f"exporting {len(panels)} panels")
     export_json(obj, panels)
 
     logging.info(f"*** Completed Light Layout {datetime.now().isoformat()} ***")
