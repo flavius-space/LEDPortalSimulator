@@ -1,0 +1,4 @@
+fileignoreconfig:
+- filename: LEDPortalSimulator/data/dome_render_6_5_LEDs_Compromise.json
+  checksum: 5e27148a9d75f91b1ec76d60351f78136817cd4134c72bea58946e35af23cc3e
+  ignore_detectors: []

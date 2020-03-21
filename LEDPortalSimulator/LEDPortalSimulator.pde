@@ -15,7 +15,7 @@ heronarts.lx.studio.LXStudio lx;
 // UISkeleton skele;
 LXModel model;
 LPSimConfig LPSimConfig;
-String activeModel = "dome_2v_6.5m_portal_compromise";
+String activeModel = "dome_render_6_5_LEDs_Compromise";
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance
