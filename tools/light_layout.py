@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from math import floor, nan
 from pprint import pformat, pprint
-from functools import reduce, partial
+from functools import partial
 
 import coloredlogs
 import numpy as np
@@ -12,7 +12,7 @@ import numpy as np
 import bpy
 from mathutils import Matrix, Vector
 
-Z_OFFSET = 0.01
+Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 
 Z_AXIS_3D = Vector((0, 0, 1))
@@ -55,24 +55,38 @@ def format_vector(vec):
             f"P({mag: 2.3f}, {theta: 2.3f})"
 
 
+def format_matrix(mat, name="Matrix", indent=1):
+    loc, rot, scale = mat.decompose()
+    out = '\n'.join([
+        f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
+        f"{name} Location:" + ENDLTAB + pformat(loc).replace('\n', '\n\t'),
+        f"{name} Rotation:" + ENDLTAB + pformat(rot).replace('\n', '\n\t'),
+        f"{name} Scale:" + ENDLTAB + pformat(scale).replace('\n', '\n\t'),
+    ])
+    return out.replace('\n', ('\n' + (indent * '\t')))
+
+
 def get_scale_factor(matrix):
     factors = matrix.to_scale()
     assert all(map(partial(np.isclose, factors[0], atol=ATOL), factors[1:]))
     return sum(factors)/len(factors)
 
 
-def polygon_flattener(polygon):
-    # Generate a matrix which will move all points on the polygon onto the X-Y plane.
-    cross_z = polygon.normal.cross(Z_AXIS_3D)
+def plane_flattener(center, normal):
+    """
+    Form a matrix which will transform all points on the plane onto the X-Y plane.
+    """
+
+    cross_z = normal.cross(Z_AXIS_3D)
     logging.debug(f"Normal cross Z-Axis: {ENDLTAB + format_vector(cross_z)}")
-    angle_z = polygon.normal.angle(Z_AXIS_3D)
+    angle_z = normal.angle(Z_AXIS_3D)
     logging.debug(f"Normal angle with Z-axis: {angle_z}")
     rotation = Matrix.Rotation(angle_z, 3, cross_z).to_4x4()
-    logging.debug(f"Rotation Matrix: \n{rotation}")
-    translation = Matrix.Translation(-polygon.center)
-    logging.debug(f"Translation Matrix: \n{translation}")
+    logging.debug(f"Rotation Matrix:" + ENDLTAB + format_matrix(rotation))
+    translation = Matrix.Translation(-center)
+    logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
     flattener = rotation @ translation
-    logging.debug(f"Flattener Matrix: \n{flattener}")
+    logging.debug(f"Flattener Matrix:" + ENDLTAB + format_matrix(flattener))
     return flattener
 
 
@@ -111,32 +125,53 @@ def get_normaliser(oriented):
     oriented[2] is at the origin, and oriented[0] is at the X-axis
     """
     translation = Matrix.Translation(-oriented[2]).to_4x4()
-    logging.debug(f"Translation Matrix: \n{translation}")
+    logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
     angle_x = (oriented[0]-oriented[2]).to_2d().angle_signed(X_AXIS_2D)
     logging.debug(f"Angle X: {angle_x}")
     rotation = Matrix.Rotation(-angle_x, 4, 'Z')
-    logging.debug(f"Rotation Matrix: \n{rotation}")
+    logging.debug(f"Rotation Matrix:" + ENDLTAB + format_matrix(rotation))
     normaliser = rotation @ translation
-    logging.debug(f"Normaliser Matrix: \n{normaliser}")
+    logging.debug(f"Normaliser Matrix:" + ENDLTAB + format_matrix(normaliser))
     return normaliser
 
 
-def get_leds(obj, polygon):
-    logging.debug(f"Center (local): {ENDLTAB + format_vector(polygon.center)}")
-    logging.debug(f"Normal (local): {ENDLTAB + format_vector(polygon.normal)}")
-    scale_factor = get_scale_factor(obj.matrix_world)
-    logging.debug(f"Scale factor: {scale_factor}")
-    logging.debug(f"Vertex IDs: \n{pformat(list(polygon.vertices))}")
-    assert len(polygon.vertices) == TRI_VERTS
-    vertices = [
-        obj.data.vertices[vertex_id].co
-        for vertex_id in polygon.vertices
-    ]
-    logging.debug(f"Vertices (local): {ENDLTAB + ENDLTAB.join(map(format_vector, vertices))}")
+def generate_lights_for_triangle(tri_width, tri_height, tri_midpoint, spacing, z_height):
+    """
+    Create a set of points
+    """
+    tri_gradient_left = tri_height / tri_midpoint
+    # tri_gradient_right =
+    logging.debug(f"Triangle Gradients: {tri_gradient_left}")
+    logging.debug(f"Spacing: {spacing}")
+    vertical_lines = floor(tri_height / spacing) - 1
+    padding = tri_height - (spacing * vertical_lines)
+    lights = []
+    for vertical_idx in range(vertical_lines):
+        pixel_y = padding + (vertical_idx * spacing)
+        row_start = (pixel_y / tri_gradient_left) + (padding / 2)
+        half_horizontal_lines = floor((tri_midpoint - row_start) / spacing) - 1
+        for horizontal_idx in range(-half_horizontal_lines, half_horizontal_lines + 1):
+            pixel_x = tri_midpoint + horizontal_idx * spacing
+            lights.append(Vector((pixel_x, pixel_y, z_height)))
+    logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(format_vector, lights)))
+    return lights
+
+
+def normalise_triangle(center, normal, vertices):
+    """
+    Transform a triangular polygon such that:
+    - it is on the X-Y plane
+    - point 2 at the origin
+    - point 0 is on the X-axis
+
+    and form a matrix which will translate points on the normalised triangle onto the polygon.
+    """
+
+    assert len(vertices) == TRI_VERTS
 
     # Bring all points on the triangle down to the X-Y plane
 
-    flattener = polygon_flattener(polygon)
+    flattener = plane_flattener(center, normal)
     flattened = [flattener @ vertex for vertex in vertices]
     logging.debug(f"Flattened: {ENDLTAB + ENDLTAB.join(map(format_vector, flattened))}")
     z_zero = [
@@ -150,38 +185,32 @@ def get_leds(obj, polygon):
     normalised = [normaliser @ point for point in oriented]
     logging.debug(f"Normalised: {ENDLTAB + ENDLTAB.join(map(format_vector, normalised))}")
 
-    # Use Normalised points to generate lights on triangle
+    # Sanity check results
 
     tri_width = normalised[0].x
     assert tri_width > 0
-    logging.debug(f"Triangle Width: {tri_width} ({scale_factor * tri_width} u)")
+    logging.debug(f"Triangle Width (local): {tri_width}")
     tri_height = normalised[1].y
     assert tri_height > 0
-    logging.debug(f"Triangle Height: {tri_height} ({scale_factor * tri_height} u)")
+    logging.debug(f"Triangle Height (local): {tri_height}")
     tri_midpoint = normalised[1].x
     if tri_type in ['EQU', 'ISO']:
         assert np.isclose(tri_midpoint * 2, tri_width, 1e-4), \
-            f"tri_midpoint {tri_midpoint} should be half of tri_width {tri_width}"
-    tri_gradient = tri_height / tri_midpoint
-    logging.debug(f"Triangle Gradient: {tri_gradient}")
+            f"Local midpoint {tri_midpoint} should be half of Local width {tri_width}"
 
-    local_spacing = LED_SPACING / scale_factor
-    logging.debug(f"Local Spacing: {local_spacing} ({LED_SPACING} u)")
-    vertical_lines = floor(tri_height / local_spacing) - 1
-    padding = tri_height - (local_spacing * vertical_lines)
-    lights_2d = []
-    for vertical_idx in range(vertical_lines):
-        pixel_y = padding + (vertical_idx * local_spacing)
-        row_start = (pixel_y / tri_gradient) + (padding / 2)
-        half_horizontal_lines = floor((tri_midpoint - row_start) / local_spacing) - 1
-        for horizontal_idx in range(-half_horizontal_lines, half_horizontal_lines + 1):
-            pixel_x = tri_midpoint + horizontal_idx * local_spacing
-            lights_2d.append(Vector((pixel_x, pixel_y, Z_OFFSET)))
+    return flattener.inverted() @ normaliser.inverted(), normalised
 
-    logging.debug(f"Lights 2D: {ENDLTAB + ENDLTAB.join(map(format_vector, lights_2d))}")
-    lights_3d = [flattener.inverted() @ normaliser.inverted() @ point for point in lights_2d]
-    logging.debug(f"Lights 3D: {ENDLTAB + ENDLTAB.join(map(format_vector, lights_3d))}")
-    return lights_3d
+
+def split_scale(matrix):
+    """
+    Split a matrix into two matrices such that:
+    - `scale` performs a homogenous scale and no other transformations
+    - `transform` performs all other transformations
+    - `scale @ transform` is equivalent to `matrix`
+    """
+    scale = Matrix.Scale(get_scale_factor(matrix), 4)
+    transform = scale.inverted() @ matrix
+    return scale, transform
 
 
 def setup_logger():
@@ -204,8 +233,12 @@ def main():
     logging.info(f"*** Starting Light Layout {datetime.now().isoformat()} ***")
     obj = bpy.context.object
     pprint(obj)
-    logging.debug(f"Object World Matrix: \n{pformat(obj.matrix_world)}")
-    logging.debug(f"Object Local Matrix: \n{pformat(obj.matrix_local)}")
+    logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
+    world_scale, world_transform = split_scale(obj.matrix_world)
+    logging.debug(f"Object World Scale:" + ENDLTAB + format_matrix(world_scale))
+    logging.debug(f"Object World Transform:" + ENDLTAB + format_matrix(world_transform))
+    scale_factor = get_scale_factor(obj.matrix_world)
+    logging.debug(f"Scale factor: {scale_factor}")
     selections = [
         (polygon, polygon.select)
         for polygon in obj.data.polygons
@@ -218,14 +251,34 @@ def main():
         if not polygon.select:
             continue
 
-        lights_3d = get_leds(obj, polygon)
+        logging.debug(f"Center (local): {ENDLTAB + format_vector(polygon.center)}")
+        center = polygon.center
+        logging.debug(f"Normal (local): {ENDLTAB + format_vector(polygon.normal)}")
+        normal = polygon.normal
+        logging.debug(f"Vertex IDs: \n{pformat(list(polygon.vertices))}")
+        vertices = [obj.data.vertices[vertex_id].co for vertex_id in polygon.vertices]
+        logging.debug(f"Vertices (local): {ENDLTAB + ENDLTAB.join(map(format_vector, vertices))}")
 
-        for light_idx, position in enumerate(lights_3d):
+        local_polygon_matrix, norm = normalise_triangle(
+            center,
+            normal,
+            vertices
+        )
+        lights_norm = generate_lights_for_triangle(
+            norm[0].x,
+            norm[1].y,
+            norm[1].x,
+            LED_SPACING / scale_factor,
+            Z_OFFSET / scale_factor
+        )
+        world_polygon_matrix = obj.matrix_world @ local_polygon_matrix
+
+        for light_idx, position in enumerate(lights_norm):
             name = f"LED {poly_idx:4d} {light_idx:4d}"
             lamp_data = bpy.data.lights.new(name=f"{name} data", type='POINT')
             lamp_data.energy = 1.0
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
-            lamp_object.location = obj.matrix_world @ position
+            lamp_object.location = world_polygon_matrix @ position
             coll.objects.link(lamp_object)
 
     logging.info(f"*** Completed Light Layout {datetime.now().isoformat()} ***")
