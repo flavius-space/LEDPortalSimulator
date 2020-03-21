@@ -5,19 +5,29 @@ import processing.data.JSONArray;
 
 public class LPSimConfig {
     public List<LPPanel> panels;
+    public List<LPStructure> structures;
+    // public float ledSize = (float)1.0;
     public LPSimConfig () {
         panels = new ArrayList<LPPanel>();
+        structures = new ArrayList<LPStructure>();
     }
-    public static LPSimConfig fromJSONObject(JSONObject jsonConfig) throws RuntimeException{
-        LPSimConfig LPSimConfig = new LPSimConfig();
+    public void updateFromJSONObject(JSONObject jsonConfig) throws RuntimeException{
+        // if(jsonConfig.hasKey("ledSize")) {
+        //     this.ledSize = jsonConfig.getFloat("ledSize");
+        // }
         if(jsonConfig.hasKey("panels")) {
             JSONArray panelList = jsonConfig.getJSONArray("panels");
             for(int i = 0; i < panelList.size(); i++) {
-                LPSimConfig.panels.add(LPPanel.fromJSONObject(panelList.getJSONObject(i)));
+				LPPanel panel = new LPPanel();
+                this.panels.add(panel.updateFromJSONObject(panelList.getJSONObject(i)));
             }
-        } else {
-            throw new RuntimeException("no panels defined in json: " + jsonConfig.toString());
         }
-        return LPSimConfig;
+        if(jsonConfig.hasKey("structures")) {
+            JSONArray structureList = jsonConfig.getJSONArray("structures");
+            for(int i = 0; i < structureList.size(); i++) {
+				LPStructure structure = new LPStructure();
+                this.structures.add(structure.updateFromJSONObject(structureList.getJSONObject(i)));
+            }
+        }
     }
 }

@@ -15,20 +15,18 @@ public class LPPanel {
         this();
         this.leds = leds;
     }
-
-    public static LPPanel fromJSONObject(JSONObject panelConfig) {
-        LPPanel panel = new LPPanel();
+    public LPPanel updateFromJSONObject(JSONObject panelConfig) {
         if(panelConfig.hasKey("pixels")) {
             JSONArray ledList = panelConfig.getJSONArray("pixels");
             for(int i = 0; i < ledList.size(); i++) {
 				JSONArray led = ledList.getJSONArray(i);
-                panel.leds.add(new PVector(led.getFloat(0), led.getFloat(1)));
+                this.leds.add(new PVector(led.getFloat(0), led.getFloat(1), led.getFloat(2)));
             }
 		}
 
 		if(panelConfig.hasKey("matrix")) {
 			JSONArray matrix = panelConfig.getJSONArray("matrix");
-			panel.matrix = new PMatrix3D(
+			this.matrix = new PMatrix3D(
 				matrix.getJSONArray(0).getFloat(0),
 				matrix.getJSONArray(0).getFloat(1),
 				matrix.getJSONArray(0).getFloat(2),
@@ -47,7 +45,7 @@ public class LPPanel {
 				matrix.getJSONArray(3).getFloat(3)
 			);
 		}
-        return panel;
+        return this;
     }
 
     public String toString() {

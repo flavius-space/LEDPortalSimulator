@@ -12,21 +12,30 @@
  */
 
 heronarts.lx.studio.LXStudio lx;
+
 // UISkeleton skele;
 LXModel model;
-LPSimConfig LPSimConfig;
-String activeModel = "dome_render_6_5_LEDs_Compromise";
+LPSimConfig config;
+String[] structures =  {
+	"dome_render_6_5_Dome_EDGES",
+	"dome_render_6_5_Left_Stack_FACES"
+};
+String activeModel = "dome_render_6_5_LEDs_Compromise_LEDs";
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance
 	size(1280, 720, P3D);
 
-	LPSimConfig = LPSimConfig.fromJSONObject(loadJSONObject(activeModel + ".json"));
-    model = modelFromPanels(LPSimConfig.panels);
-
-	// skele = new UISkeleton(LPSimConfig.skeleConfig);
+	config = new LPSimConfig();
+	config.updateFromJSONObject(loadJSONObject(activeModel + ".json"));
+	for(String structure : structures) {
+		config.updateFromJSONObject(loadJSONObject(structure + ".json"));
+	}
+    model = modelFromPanels(config.panels);
 
 	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
+	// lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("LEFT_HANDED"));
+	lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("RIGHT_HANDED"));
 	lx.ui.setResizable(RESIZABLE);
 }
 
@@ -36,7 +45,10 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 
 void onUIReady(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom UI components here
-	// ui.preview.addComponent(skele);
+	for(LPStructure structure: config.structures) {
+		ui.preview.addComponent(new UIWireframe(structure));
+	}
+	ui.preview.addComponent(new UIAxes());
 }
 
 void draw() {
