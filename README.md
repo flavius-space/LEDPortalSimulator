@@ -30,3 +30,6 @@ blender your_model.blend
 Then, in the Scripting tab, open the file `script_wrapper.py` and change the file path to point to
 the script you want to run, the click `Run Script`. The script will output to the terminal from
 which Blender was initially run.
+
+Note: because of the weird way these files are imported, you need to reload the script each time it
+is saved
