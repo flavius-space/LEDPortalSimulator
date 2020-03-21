@@ -36,27 +36,26 @@ def serialise_object(obj, method):
 
         logging.debug(f"Vertex IDs:" + ENDLTAB + pformat(list(polygon.vertices)))
 
-        if EXPORT_TYPE == 'EDGES':
-            verts = len(polygon.vertices)
-            for i in range(verts):
-                edge = tuple(sorted([polygon.vertices[i], polygon.vertices[(i+1) % verts]]))
-                edges.add(edge)
-        elif EXPORT_TYPE == 'FACES':
-            polygons.append(list(polygon.vertices))
+        verts = len(polygon.vertices)
+        for i in range(verts):
+            edge = tuple(sorted([polygon.vertices[i], polygon.vertices[(i+1) % verts]]))
+            edges.add(edge)
+        polygons.append(list(polygon.vertices))
 
     serialised = {
         'type': EXPORT_TYPE,
         'name': obj.name,
         'vertices': vertices,
-        'matrix': serialise_matrix(obj.matrix_world)
+        'matrix': serialise_matrix(obj.matrix_world),
+        'edges': list(edges),
+        'faces': polygons
     }
 
     if EXPORT_TYPE == 'EDGES':
         logging.info(f"exporting {len(edges)} edges")
-        serialised['edges'] = list(edges)
+
     elif EXPORT_TYPE == 'FACES':
         logging.info(f"exporting {len(polygons)} faces")
-        serialised['faces'] = polygons
 
     return serialised
 
