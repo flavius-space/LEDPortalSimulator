@@ -1,3 +1,4 @@
+import imp
 import inspect
 import logging
 import os
@@ -16,6 +17,7 @@ THIS_DIR = os.path.dirname(THIS_FILE)
 try:
     PATH = sys.path[:]
     sys.path.insert(0, THIS_DIR)
+    imp.reload(__import__('common'))  # dumb hacks because of blender's pycache settings
     from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
                         X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
                         get_selected_polygons)
@@ -27,6 +29,7 @@ Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
 LED_SPACING = 0.050
+IGNORE_LAMPS = True
 
 
 def orientation(*vec):
@@ -166,9 +169,10 @@ def main():
     obj = bpy.context.object
     logging.info(f"Selected object: {obj}")
     logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
-    with mode_set('OBJECT'):
-        bpy.ops.object.delete({"selected_objects": bpy.data.collections['LEDs'].all_objects})
-    coll = bpy.data.collections[COLLECTION_NAME]
+    if not IGNORE_LAMPS:
+        with mode_set('OBJECT'):
+            bpy.ops.object.delete({"selected_objects": bpy.data.collections['LEDs'].all_objects})
+        coll = bpy.data.collections[COLLECTION_NAME]
 
     panels = []
 
@@ -203,6 +207,9 @@ def main():
         panel['pixels'] = serialise_matrix(pixels)
 
         panels.append(panel)
+
+        if IGNORE_LAMPS:
+            continue
 
         logging.info(f"adding {len(pixels)} lights to scene")
 
