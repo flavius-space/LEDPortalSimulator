@@ -75,11 +75,31 @@ def serialise_matrix(mat):
     return [serialise_vector(vec) for vec in mat]
 
 
-def export_json(obj, panels):
+def export_json(obj, serialised, suffix):
     model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
     obj_name = obj.name
-    sanitised, _ = re.subn(r"\W+", "_", f"{model_name}_{obj_name}")
+    sanitised, _ = re.subn(r"\W+", "_", f"{model_name}_{obj_name}_{suffix}")
     sanitised = os.path.join(DATA_PATH, f"{sanitised}.json")
     logging.info(f"exporting to {sanitised}")
     with open(sanitised, 'w') as stream:
-        json.dump({'panels': panels}, stream, indent=4)
+        json.dump(serialised, stream, indent=4)
+
+
+def apply_to_selected_objects(fun, *args, **kwargs):
+    sel_objs = [obj for obj in bpy.context.selected_objects if obj.type == 'MESH']
+    logging.info(f"objects: {pformat(sel_objs)}")
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in sel_objs:
+        bpy.context.view_layer.objects.active = obj
+        yield fun(obj, *args, **kwargs)
+
+
+def get_selected_polygons(obj):
+    if bpy.context.object.mode == 'EDIT':
+        selections = [
+            (polygon, polygon.select)
+            for polygon in obj.data.polygons
+        ]
+        logging.info(f"Polygon Selections: \n{pformat(selections)}")
+        return [polygon for polygon in obj.data.polygons if polygon.select]
+    return obj.data.polygons
