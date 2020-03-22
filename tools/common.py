@@ -9,6 +9,7 @@ from pprint import pformat
 import logging
 import os
 
+ORIGIN_3D = Vector((0, 0, 0))
 Z_AXIS_3D = Vector((0, 0, 1))
 X_AXIS_2D = Vector((1, 0))
 TRI_VERTS = 3
@@ -31,7 +32,7 @@ def mode_set(mode):
 def format_vector(vec):
     mag = vec.magnitude
     if len(vec) == 3:
-        theta = vec.to_2d().angle_signed(X_AXIS_2D) if mag > 0 else nan
+        theta = vec.to_2d().angle_signed(X_AXIS_2D) if vec.to_2d().magnitude > 0 else nan
         phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
         return f"C({vec.x: 2.3f}, {vec.y: 2.3f}, {vec.z: 2.3f}) " \
             f"P({mag: 2.3f}, {theta: 2.3f}, {phi: 2.3f})"
