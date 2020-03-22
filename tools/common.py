@@ -13,6 +13,7 @@ ORIGIN_3D = Vector((0, 0, 0))
 Z_AXIS_3D = Vector((0, 0, 1))
 X_AXIS_2D = Vector((1, 0))
 TRI_VERTS = 3
+QUAD_VERTS = 4
 ENDLTAB = "\n\t"
 ATOL = 1e-4
 LOG_STREAM_FMT = "%(asctime)s %(levelname)s %(message)s"
