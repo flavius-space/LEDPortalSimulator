@@ -1,27 +1,24 @@
 // Note: For some reason it's easier to render with Y ans Z swapped
 
 public class UIWireframe extends UI3dComponent {
-	private int colour = #555555;
-
+	public int colour = #ffffff;
+	public float alpha = 100;
 	LPStructure data;
+	List<PVector[]> edges;
 	public UIWireframe(LPStructure data) {
 		this.data = data;
+		this.edges = data.getWorldEdges();
 	}
     @Override
     protected void onDraw(UI ui, PGraphics pg){
-		pg.pushMatrix();
 		pg.pushStyle();
-		pg.applyMatrix(this.data.matrix);
-		for (int[] edge: this.data.edges) {
-			PVector start = this.data.vertices.get(edge[0]);
-			PVector end = this.data.vertices.get(edge[1]);
-			pg.stroke(this.colour);
-			pg.strokeWeight(1);
-
+		pg.strokeWeight(5);
+		pg.stroke(this.colour, alpha);
+		for (PVector[] edge: this.edges) {
+			PVector start = edge[0];
+			PVector end = edge[1];
 			pg.line(start.x, start.y, start.z, end.x, end.y, end.z);
-			// pg.line(start.x, start.z, start.y, end.x, end.z, end.y);
 		}
-		pg.popMatrix();
 		pg.popStyle();
 	}
 }
@@ -35,16 +32,14 @@ public class UIAxes extends UI3dComponent {
 	}
     @Override
     protected void onDraw(UI ui, PGraphics pg){
-		pg.pushMatrix();
 		pg.pushStyle();
-		pg.strokeWeight(2);
+		// pg.strokeWeight(5);
 		pg.stroke(#ff0000);
 		pg.line(0, 0, 0, 1, 0, 0);
 		pg.stroke(#00ff00);
 		pg.line(0, 0, 0, 0, 1, 0);
 		pg.stroke(#0000ff);
 		pg.line(0, 0, 0, 0, 0, 1);
-		pg.popMatrix();
 		pg.popStyle();
 	}
 }
@@ -68,7 +63,6 @@ public class BillboardText extends UI3dComponent {
     @Override
     void onDraw(UI ui, PGraphics pg){
 		pg.pushStyle();
-		pg.printCamera();
 		pg.textMode(SHAPE);
 		pg.fill(this.c);
 		pg.textSize(this.s);

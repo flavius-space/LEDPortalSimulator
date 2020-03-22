@@ -65,6 +65,16 @@ public class LPStructure {
 		}
 
         return this;
-    }
+	}
+
+	public List<PVector[]> getWorldEdges() {
+		List<PVector[]> edges = new ArrayList<PVector[]>();
+		for(int[] edge : this.edges) {
+			PVector start = LEDPortalSimulator.getWorldCoordinate(this.matrix, this.vertices.get(edge[0]));
+			PVector end = LEDPortalSimulator.getWorldCoordinate(this.matrix, this.vertices.get(edge[1]));
+			edges.add(new PVector[]{start, end});
+		}
+		return edges;
+	}
 
 }
