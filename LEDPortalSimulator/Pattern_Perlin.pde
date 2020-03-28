@@ -49,9 +49,9 @@ public class Simplex extends LXPattern {
 		float timeScaleVal = (float)timeScale.getValue();
 		for (LXPoint p : model.points) {
 			LXVector vec = new LXVector(p).rotate(movement*50);
-			println(movement);
+			// println(movement);
 			float shade = (float)(simplexNoise.noise(
-				 (vec.x + movement) * spaceScaleVal,
+				 (vec.x ) * spaceScaleVal,
 				 (vec.y + movement) * spaceScaleVal,
 				 (vec.z + movement) * spaceScaleVal,
 				 movement * timeScaleVal
@@ -82,7 +82,7 @@ public class Simplex extends LXPattern {
 			//ready to populate this color!
 			setColor(p.index, LXColor.rgb((int)red,(int)green, (int)blue));
 		}
-		movement +=((float)RateLfo.getValue() / 100000) ;
+		movement +=((float)RateLfo.getValue() / 100000) * timeScaleVal;
 	}
 }
 
