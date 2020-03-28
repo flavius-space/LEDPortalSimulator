@@ -35,7 +35,7 @@ class TestLightLayout(unittest.TestCase):
         z_height = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((0, height))]
         expected_matrix = Matrix([
-            [spacing, 0, 0, 0.05],
+            [spacing, 0, 0, 0.025],
             [0, spacing, 0, 0.1],
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
@@ -72,7 +72,7 @@ class TestLightLayout(unittest.TestCase):
         z_height = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
         expected_matrix = Matrix([
-            [spacing, 0, 0, 0.05],
+            [spacing, 0, 0, 0.075],
             [0, spacing, 0, 0.1],
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
@@ -101,6 +101,58 @@ class TestLightLayout(unittest.TestCase):
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
         assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
 
+    def test_generate_lights_for_convex_polygon_right_triangle_flip_margin(self):
+        # Given
+        width = 1.1
+        height = 2.2
+        spacing = 0.2
+        z_height = 0.15
+        vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
+        expected_matrix = Matrix([
+            [spacing, 0, 0, 0.185864],
+            [0, spacing, 0, 0.1],
+            [0, 0, spacing, z_height],
+            [0, 0, 0, 1]
+        ])
+        expected_lights = [
+            (1, 0, 0),
+            (2, 0, 0),
+            (3, 0, 0),
+            (4, 0, 0),
+            (4, 1, 0),
+            (3, 1, 0),
+            (2, 1, 0),
+            (1, 1, 0),
+            (2, 2, 0),
+            (3, 2, 0),
+            (4, 2, 0),
+            (4, 3, 0),
+            (3, 3, 0),
+            (2, 3, 0),
+            (3, 4, 0),
+            (4, 4, 0),
+            (4, 5, 0),
+            (3, 5, 0),
+            (4, 6, 0),
+            (4, 7, 0),
+        ]
+
+        # When
+        matrix, lights = generate_lights_for_convex_polygon(
+            vertices[1].x,
+            vertices[2].x,
+            vertices[2].y,
+            vertices[-1].x,
+            vertices[-1].y,
+            spacing,
+            z_height,
+            spacing/2
+        )
+
+        # Then
+        assert matrix_isclose(lights, expected_lights, atol=ATOL)
+        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+
     def test_generate_lights_for_convex_polygon_iso_triangle(self):
         # Given
         width = 3.3
@@ -110,7 +162,7 @@ class TestLightLayout(unittest.TestCase):
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width/2, height))]
         expected_matrix = Matrix([
             [spacing, 0, 0, 0.15],
-            [0, spacing, 0, 0.1],
+            [0, spacing, 0, 0.10],
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
         ])

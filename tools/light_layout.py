@@ -15,7 +15,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from math import floor, nan, ceil, copysign
+from math import floor, nan, ceil, copysign, sin, tanh
 from pprint import pformat
 from itertools import starmap
 
@@ -41,8 +41,8 @@ LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
-LED_SPACING = 0.2
-# LED_SPACING = 0.05
+# LED_SPACING = 0.2
+LED_SPACING = 0.05
 IGNORE_LAMPS = False
 
 
@@ -224,7 +224,7 @@ def float_abs_ceil(number):
 
 def generate_lights_for_convex_polygon(
         base_width, quad_right_x, quad_right_height, quad_left_x, quad_left_height, spacing,
-        z_height, serpentine=1
+        z_height, margin=0, serpentine=True,
 ):
     """
     Geometric Assumptions:
@@ -245,21 +245,36 @@ def generate_lights_for_convex_polygon(
     gradient_left = nan_divide(quad_left_height, quad_left_x)
     gradient_right = nan_divide(quad_right_height, quad_right_x - base_width)
     logging.debug(f"Gradients: {gradient_left: 7.3f} / {gradient_right: 7.3f}")
-    vertical_lines = float_floor(height / spacing) + 1
-    logging.debug(f"Vertical Lines: {vertical_lines}")
-    vertical_padding = (height - (spacing * (vertical_lines - 1))) / 2
+    vertical_usable = height - (margin * 2)
+    vertical_lines = float_floor(vertical_usable / spacing) + 1
+    vertical_padding = (vertical_usable - (spacing * (vertical_lines - 1))) / 2
+    left_margin = abs(margin/sin(tanh(gradient_left))) if gradient_left is not nan else margin
+    right_margin = abs(margin/sin(tanh(gradient_right))) if gradient_right is not nan else margin
     logging.debug(
-        f"Vertical Padding (Anti): {vertical_padding: 7.3f} "
-        f"({height - (spacing * (vertical_lines - 1) + vertical_padding): 7.3f})")
-    base_lines = float_floor(base_width / spacing) + 1
-    logging.debug(f"Base Horizontal Lines: {base_lines}")
-    base_padding = (base_width - (spacing * (base_lines - 1))) / 2
+        f"Left / Right / Vertical Margin: "
+        f"{left_margin: 7.3f} / {right_margin: 7.3f} / {margin: 7.3f}")
+
+    vertical_start = margin + vertical_padding
+    margin_start = left_margin + nan_divide(vertical_start, gradient_left)
+    margin_end = base_width - right_margin + nan_divide(vertical_start, gradient_right)
     logging.debug(
-        f"Horizontal Padding (Anti): {base_padding: 7.3f} "
-        f"({base_width - (spacing * (base_lines - 1) + base_padding): 7.3f})")
+        f"Margin Start / End, Vertical Start: "
+        f"{margin_start: 7.3f} / {margin_end: 7.3f}, {vertical_start: 7.3f}")
+
+    horizontal_usable = margin_end - margin_start
+    horizontal_lines = float_floor(horizontal_usable / spacing) + 1
+    horizontal_padding = (horizontal_usable - (spacing * (horizontal_lines - 1))) / 2
+    horizontal_start = margin_start + horizontal_padding
+    horizontal_end = margin_end - horizontal_padding
+    logging.debug(f"Horizontal / Vertical Usable: {horizontal_usable: 7.5f} / {vertical_usable: 7.5f}")
+    logging.debug(f"Horizontal / Vertical Lines: {horizontal_lines} / {vertical_lines}")
+    logging.debug(f"Horizontal Start / End: {horizontal_start: 7.5f} / {horizontal_end: 7.5f}")
+    logging.debug(
+        f"Horizontal / Vertical Padding: "
+        f"{horizontal_padding: 7.3f} / {vertical_padding: 7.3f}")
 
     translation = Matrix.Translation(Vector((
-        base_padding, vertical_padding, z_height
+        horizontal_start, vertical_start, z_height
     )))
     logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
     scale = Matrix.Scale(spacing, 4)
@@ -269,22 +284,22 @@ def generate_lights_for_convex_polygon(
 
     lights = []
     for vertical_idx in range(vertical_lines):
-        pixel_y = vertical_padding + (vertical_idx * spacing)
+        pixel_y = vertical_start + (vertical_idx * spacing)
         logging.debug(f"Pixel Y: {pixel_y: 7.3f}")
         # TODO: scale padding by gradients
-        row_start = nan_divide(pixel_y, gradient_left) + base_padding
-        left_offset = float_abs_ceil((row_start - base_padding) / spacing)
-        row_end = base_width + nan_divide(pixel_y, gradient_right) - base_padding
-        right_offset = float_abs_ceil((row_end - (base_width - base_padding)) / spacing)
+        row_start = horizontal_start + nan_divide(pixel_y, gradient_left)
+        left_offset = float_abs_ceil(nan_divide(pixel_y, gradient_left) / spacing)
+        row_end = horizontal_end + nan_divide(pixel_y, gradient_right)
+        right_offset = float_abs_ceil(nan_divide(pixel_y, gradient_right) / spacing)
         row_capacity = row_end - row_start
-        row_usage = ((base_lines + right_offset - left_offset - 1) * spacing)
+        row_usage = ((horizontal_lines + right_offset - left_offset - 1) * spacing)
         logging.debug(
             f"Row Start / End / Capacity / Usage: {row_start: 7.3f} / {row_end: 7.3f}"
             f" / {row_capacity: 7.3f} / {row_usage: 7.3f}")
         logging.debug(f"Left / Right Offset: {left_offset} / {right_offset}")
         row = []
-        if base_lines + right_offset > left_offset:
-            for horizontal_idx in range(left_offset, base_lines + right_offset):
+        if horizontal_lines + right_offset > left_offset:
+            for horizontal_idx in range(left_offset, horizontal_lines + right_offset):
                 row.append(Vector((horizontal_idx, vertical_idx, 0)))
         if serpentine and vertical_idx % 2:
             row = list(reversed(row))
@@ -395,7 +410,8 @@ def main():
             panel_vertices[-1].x,
             panel_vertices[-1].y,
             LED_SPACING,
-            Z_OFFSET
+            Z_OFFSET,
+            LED_SPACING / 2,
         )
 
         panel['matrix'] = serialise_matrix(panel_matrix @ pixel_matrix)

@@ -20,8 +20,8 @@ String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
 };
-// String activeModel = "dome_render_6_5_LEDs_Compromise_LEDs";
-String activeModel = "dome_render_6_5_Test_12_10_LEDs";
+String activeModel = "dome_render_6_5_LEDs_Compromise_LEDs";
+// String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance
@@ -40,44 +40,43 @@ void setup() {
 	lx.ui.setResizable(RESIZABLE);
 }
 
-	final String OPC_PI = "192.168.1.20";
+	final String OPC_IP = "192.168.1.20";
+	// final String OPC_IP = "127.0.0.1";
 	final int OPC_PORT = 42069;
 	final byte OPC_CHANNEL = 0;
 
 void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom components or output drivers here
 	try {
-		// This does all outputs (too many)
-		// OPCOutput output = new OPCOutput(lx, OPC_PI, OPC_PORT, lx.model);
-		// output.setChannel(OPC_CHANNEL);
-
-		// Construct a new DatagramOutput object
-		// LXDatagramOutput output = new LXDatagramOutput(lx);
-
-		// Add an OPCDatagram which sends all of the points in our model
-		// OPCDatagram datagram = new OPCDatagram(lx.model);
-		// datagram.setAddress(OPC_PI);
-		// datagram.setPort(OPC_PORT);
-		// datagram.setChannel((byte)4);
-		// output.addDatagram(datagram);
-
-		// Here's an example of a custom OPCDatagram which only sends specific points
-		// int universeNumber = 0;
-		// int[] first100Points = new int[100];
-		// for (int i = 0; i < first100Points.length; ++i) {
-		// 	first100Points[i] = i;
-		// }
-		// OPCDatagram first100PointsDatagram = new OPCDatagram(first100Points, universeNumber);
-		// first100PointsDatagram.setAddress(ARTNET_IP);
-		// output.addDatagram(datagram);
-
-		int[] first120Points = new int[120];
-		for (int i = 0; i < first120Points.length; ++i) {
-			first120Points[i] = i;
+		int[] firstNPoints = new int[999];
+		for (int i = 0; i < firstNPoints.length; ++i) {
+			firstNPoints[i] = i;
 		}
 
-		OPCOutput output = new OPCOutput(lx, OPC_PI, OPC_PORT, first120Points);
+		// TCP:
+
+		// First N Points
+		OPCOutput output =
+			new OPCOutput(lx, OPC_IP, OPC_PORT, firstNPoints);
+		// All points
+			// new OPCOutput(lx, OPC_IP, OPC_PORT, lx.model);
+
 		output.setChannel(OPC_CHANNEL);
+
+		// UDP:
+
+		// LXDatagramOutput output = new LXDatagramOutput(lx);
+
+		// UDP: First N Points
+		// OPCDatagram datagram
+		// 	 = new OPCDatagram(firstNPoints);
+		// UDP: All points
+			//  = new OPCDatagram(lx.model);
+
+		// datagram.setAddress(OPC_IP);
+		// datagram.setPort(OPC_PORT);
+		// datagram.setChannel(OPC_CHANNEL);
+		// output.addDatagram(datagram);
 
 		// Add the datagram output to the LX engine
 		lx.addOutput(output);
