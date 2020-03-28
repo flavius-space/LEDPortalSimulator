@@ -1,10 +1,21 @@
+"""
+Script which uses the Blender API to generate a set of lights for all selected polygons in the
+currently selected mesh object. Optionally places lights in the blender scene for preview
+
+TODO:
+- make the following configurable in object properties:
+    - LED_SPACING
+    - controller info (channel number, IP)
+"""
+
+
 import imp
 import inspect
 import logging
 import os
 import sys
 from datetime import datetime
-from math import floor, nan
+from math import floor, nan, ceil, copysign
 from pprint import pformat
 from itertools import starmap
 
@@ -18,9 +29,10 @@ THIS_DIR = os.path.dirname(THIS_FILE)
 try:
     PATH = sys.path[:]
     sys.path.insert(0, THIS_DIR)
-    imp.reload(__import__('common'))  # dumb hacks because of blender's pycache settings
+    import common
+    imp.reload(common)  # dumb hacks because of blender's pycache settings
     from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL, ORIGIN_3D,
-                        X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json, QUAD_VERTS,
+                        X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
                         get_selected_polygons)
 finally:
     sys.path = PATH
@@ -29,8 +41,9 @@ LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
-LED_SPACING = 0.050
-IGNORE_LAMPS = True
+LED_SPACING = 0.2
+# LED_SPACING = 0.05
+IGNORE_LAMPS = False
 
 
 # def plot_vecs_2d(vecs):
@@ -55,27 +68,10 @@ def orientation(*vecs):
 
     find the cross-product of these two vectors. if it is in the same direction as
     """
-    # logging.debug("Orientation Vectors:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs[:TRI_VERTS])))
-    # lengths = [(vecs[i] - vecs[(i+1) % TRI_VERTS]).magnitude for i in range(TRI_VERTS)]
-    # logging.debug(f"Lengths: \n{pformat(lengths)}")
-    # ratios = [lengths[i]/lengths[(i+1) % TRI_VERTS] for i in range(TRI_VERTS)]
-    # logging.debug(f"Ratios: \n{pformat(ratios)}")
-    # equalities = [np.isclose(ratio, 1, atol=ATOL) for ratio in ratios]
-    # logging.debug(f"Equalities: {equalities}")
-    # tri_type = {3: 'EQU', 1: 'ISO'}.get(len(list(filter(None, equalities))), 'OTH')
-    # logging.debug(f"Type: {tri_type}")
-    # equal_index = equalities.index(True) if tri_type == 'ISO' else 0
-    # logging.debug(f"Equal Index: {equal_index}")
-    # logging.info("DIAGNOSIS: " + [
-    #     f"p1 {vecs[1]} is apex, move p2 {vecs[2]} to origin, move p0 {vecs[0]} to +ve x-axis",
-    #     f"you're good",
-    #     f"p0 {vecs[0]} is apex, move p1 {vecs[1]} to origin, move p2 {vecs[2]} to +ve x-axis"
-    # ][equal_index])
 
     rotation = Matrix.Rotation(-(vecs[1]-vecs[0]).to_2d().angle_signed(X_AXIS_2D), 4, 'Z')
     relative = [rotation @ (vec - vecs[0]) for vec in vecs[1:]]
     logging.debug("Relative:" + ENDLTAB + ENDLTAB.join(map(format_vector, relative)))
-    # plot_vecs_2d(relative)
 
     cross = relative[0].cross(relative[1])
     logging.debug("Cross:" + ENDLTAB + format_vector(cross))
@@ -169,19 +165,9 @@ def orient_flattened_points(flattened):
     tri_type = {3: 'EQU', 1: 'ISO'}.get(len(list(filter(None, equalities))), 'OTH')
     logging.debug(f"Type: {tri_type}")
     equal_index = equalities.index(True) if tri_type == 'ISO' else 0
-    # logging.debug(f"Equal Index: {equal_index}")
-    # logging.info([
-    #     f"p1 {flattened[0]} is apex, move p2 {flattened[2]} to origin, move p0 {flattened[0]} to +ve x-axis",
-    #     f"p2 {flattened[1]} is apex, move p0 {flattened[0]} to origin, move p1 {flattened[1]} to +ve x-axis",
-    #     f"p0 {flattened[2]} is apex, move p1 {flattened[1]} to origin, move p2 {flattened[2]} to +ve x-axis"
-    # ][equal_index])
     oriented = rotate_seq(flattened, equal_index + 2)
     logging.debug(f"Oriented: {ENDLTAB + ENDLTAB.join(map(format_vector, oriented))}")
     orientation(*oriented)
-    # logging.info(f"rotating once")
-    # orientation(*rotate_seq(oriented, 1))
-    # logging.info(f"rotating twice")
-    # orientation(*rotate_seq(oriented, 2))
     return oriented, tri_type
 
 
@@ -200,78 +186,115 @@ def get_normaliser(oriented):
     return normaliser
 
 
-def get_gradient(rise, run):
-    if np.isclose(run, 0, atol=ATOL):
+def nan_divide(quotient, dividend):
+    if np.isclose(dividend, 0, atol=ATOL):
         return nan
-    return rise / run
-
-
-def divide_gradient(quotient, gradient):
-    if gradient is nan:
+    if dividend is nan:
         return 0
-    return quotient / gradient
+    return quotient / dividend
 
 
-def generate_lights_for_quadrangle(
-    base_width, quad_right_x, quad_right_height, quad_left_x, quad_left_height, spacing,
-    z_height, serpentine=1):
-    logging.debug(f"Spacing: {spacing}")
+def float_floor(number):
+    closest_int = round(number)
+    if np.isclose(number, closest_int, atol=ATOL):
+        return closest_int
+    return floor(number)
+
+
+def float_ceil(number):
+    closest_int = round(number)
+    if np.isclose(number, closest_int, atol=ATOL):
+        return closest_int
+    return ceil(number)
+
+
+def float_abs_floor(number):
+    closest_int = round(number)
+    if np.isclose(number, closest_int, atol=ATOL):
+        return closest_int
+    return int(copysign(floor(abs(number)), number))
+
+
+def float_abs_ceil(number):
+    closest_int = round(number)
+    if np.isclose(number, closest_int, atol=ATOL):
+        return closest_int
+    return int(copysign(ceil(abs(number)), number))
+
+
+def generate_lights_for_convex_polygon(
+        base_width, quad_right_x, quad_right_height, quad_left_x, quad_left_height, spacing,
+        z_height, serpentine=1
+):
+    """
+    Geometric Assumptions:
+    - all points are coplanar
+    - polygon has already been flattened and normalised (see normalise_plane)
+    - points 0, 1, 2 and -1 are convex
+    - points form a triangle or quadrangle
+
+    TODO:
+    - handle other polygon types
+    """
+    logging.debug(f"Spacing: {spacing: 7.3f}")
     height = max([quad_left_height, quad_right_height])
-    logging.debug(f"Height: {height}")
-    gradient_left = get_gradient(quad_left_height, quad_left_x)
-    gradient_right = get_gradient(quad_right_height, quad_right_x - base_width)
-    logging.debug(f"Gradients: {gradient_left} / {gradient_right}")
-    vertical_lines = floor(height / spacing) - 1
+    logging.debug(f"Width (Base) / Height: {base_width: 7.3f} / {height: 7.3f}")
+    logging.debug(
+        f"Quad Left / Right (x, height): ({quad_left_x: 7.3f}, {quad_left_height: 7.3f})"
+        f" / ({quad_right_x: 7.3f}, {quad_right_height: 7.3f})")
+    gradient_left = nan_divide(quad_left_height, quad_left_x)
+    gradient_right = nan_divide(quad_right_height, quad_right_x - base_width)
+    logging.debug(f"Gradients: {gradient_left: 7.3f} / {gradient_right: 7.3f}")
+    vertical_lines = float_floor(height / spacing) + 1
     logging.debug(f"Vertical Lines: {vertical_lines}")
-    vertical_padding = (height - (spacing * vertical_lines)) / 2
-    logging.debug(f"Vertical Padding {vertical_padding}")
+    vertical_padding = (height - (spacing * (vertical_lines - 1))) / 2
+    logging.debug(
+        f"Vertical Padding (Anti): {vertical_padding: 7.3f} "
+        f"({height - (spacing * (vertical_lines - 1) + vertical_padding): 7.3f})")
+    base_lines = float_floor(base_width / spacing) + 1
+    logging.debug(f"Base Horizontal Lines: {base_lines}")
+    base_padding = (base_width - (spacing * (base_lines - 1))) / 2
+    logging.debug(
+        f"Horizontal Padding (Anti): {base_padding: 7.3f} "
+        f"({base_width - (spacing * (base_lines - 1) + base_padding): 7.3f})")
+
+    translation = Matrix.Translation(Vector((
+        base_padding, vertical_padding, z_height
+    )))
+    logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
+    scale = Matrix.Scale(spacing, 4)
+    logging.debug(f"Scale Matrix:" + ENDLTAB + format_matrix(scale))
+    transformation = translation @ scale
+    logging.debug(f"Transformation Matrix:" + ENDLTAB + format_matrix(transformation))
+
     lights = []
-    normal_horizontal_lines = floor(base_width / spacing) - 1
-    logging.debug(f"Normal Horizontal Lines: {normal_horizontal_lines}")
-    horizontal_padding = (base_width - (spacing * normal_horizontal_lines)) / 2
-    logging.debug(f"Horizontal Padding: {horizontal_padding}")
     for vertical_idx in range(vertical_lines):
         pixel_y = vertical_padding + (vertical_idx * spacing)
-        row_start = divide_gradient(pixel_y, gradient_left) + vertical_padding
-        left_horizontal_lines = max(floor((quad_left_x - row_start) / spacing) - 1, 0)
-        logging.debug(f"Left Horizontal Lines: {left_horizontal_lines}")
-        row_end = base_width + divide_gradient(pixel_y, gradient_right) - vertical_padding
-        right_horizontal_lines = max(floor((row_end - quad_right_x) / spacing) - 1, 0)
-        logging.debug(f"Right Horizontal Lines: {right_horizontal_lines}")
+        logging.debug(f"Pixel Y: {pixel_y: 7.3f}")
+        # TODO: scale padding by gradients
+        row_start = nan_divide(pixel_y, gradient_left) + base_padding
+        left_offset = float_abs_ceil((row_start - base_padding) / spacing)
+        row_end = base_width + nan_divide(pixel_y, gradient_right) - base_padding
+        right_offset = float_abs_ceil((row_end - (base_width - base_padding)) / spacing)
+        row_capacity = row_end - row_start
+        row_usage = ((base_lines + right_offset - left_offset - 1) * spacing)
+        logging.debug(
+            f"Row Start / End / Capacity / Usage: {row_start: 7.3f} / {row_end: 7.3f}"
+            f" / {row_capacity: 7.3f} / {row_usage: 7.3f}")
+        logging.debug(f"Left / Right Offset: {left_offset} / {right_offset}")
         row = []
-        for horizontal_idx in range(-left_horizontal_lines, normal_horizontal_lines + right_horizontal_lines):
-            pixel_x = horizontal_padding + horizontal_idx * spacing
-            row.append(Vector((pixel_x, pixel_y, z_height)))
+        if base_lines + right_offset > left_offset:
+            for horizontal_idx in range(left_offset, base_lines + right_offset):
+                row.append(Vector((horizontal_idx, vertical_idx, 0)))
         if serpentine and vertical_idx % 2:
             row = list(reversed(row))
+        logging.debug(f"Row: {row}")
+        # Sanity check:
+        assert row_usage * (1-ATOL) < row_capacity
         lights.extend(row)
     logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(format_vector, lights)))
-    return lights
 
-
-def generate_lights_for_triangle(base_width, apex_x, apex_height, spacing, z_height):
-    """
-    Create a set of points
-    """
-    logging.debug(f"Spacing: {spacing}")
-    gradient_left = apex_height / apex_x
-    gradient_right = -apex_height / (base_width - apex_x)
-    logging.debug(f"Gradients: {gradient_left} / {gradient_right}")
-    vertical_lines = floor(apex_height / spacing)
-    vertical_padding = apex_height - (spacing * vertical_lines)
-    logging.debug(f"Padding / Vertical Lines: {vertical_padding} / {vertical_lines}")
-    lights = []
-    for vertical_idx in range(vertical_lines):
-        pixel_y = vertical_padding + (vertical_idx * spacing)
-        row_start = (pixel_y / gradient_left)  # TODO: vertical_padding
-        left_horizontal_lines = floor((apex_x - row_start) / spacing) - 1
-        row_end = base_width + (pixel_y / gradient_right)  # TODO: vertical_padding
-        right_horizontal_lines = floor((row_end - apex_x) / spacing) - 1
-        for horizontal_idx in range(-left_horizontal_lines, right_horizontal_lines + 1):
-            pixel_x = apex_x + horizontal_idx * spacing
-            lights.append(Vector((pixel_x, pixel_y, z_height)))
-    logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(format_vector, lights)))
-    return lights
+    return transformation, lights
 
 
 def normalise_plane(center, normal, vertices):
@@ -355,35 +378,27 @@ def main():
             f"Vertices (local / world):" + ENDLTAB
             + ENDLTAB.join(starmap(format_vecs, zip(vertices, world_vertices))))
 
-        world_vertices = rotate_seq(world_vertices, 1)
+        # TODO: Make this configurable in object properties
+        vertex_rotation = 1
+        world_vertices = rotate_seq(world_vertices, vertex_rotation)
 
         panel_matrix, panel_vertices = normalise_plane(
             world_center, world_normal, world_vertices
         )
 
-        panel['matrix'] = serialise_matrix(panel_matrix)
         panel['vertices'] = serialise_matrix(panel_vertices)
 
-        if len(panel_vertices) == TRI_VERTS:
-            pixels = generate_lights_for_triangle(
-                panel_vertices[1].x,
-                panel_vertices[2].x,
-                panel_vertices[2].y,
-                LED_SPACING,
-                Z_OFFSET
-            )
-        elif len(panel_vertices) == QUAD_VERTS:
-            pixels = generate_lights_for_quadrangle(
-                panel_vertices[1].x,
-                panel_vertices[2].x,
-                panel_vertices[2].y,
-                panel_vertices[3].x,
-                panel_vertices[3].y,
-                LED_SPACING,
-                Z_OFFSET
-            )
+        pixel_matrix, pixels = generate_lights_for_convex_polygon(
+            panel_vertices[1].x,
+            panel_vertices[2].x,
+            panel_vertices[2].y,
+            panel_vertices[-1].x,
+            panel_vertices[-1].y,
+            LED_SPACING,
+            Z_OFFSET
+        )
 
-
+        panel['matrix'] = serialise_matrix(panel_matrix @ pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
 
         panels.append(panel)
@@ -393,12 +408,16 @@ def main():
 
         logging.info(f"adding {len(pixels)} lights to scene")
 
+        logging.debug("Lights (Norm):")
+
         for light_idx, position in enumerate(pixels):
             name = f"LED {poly_idx:4d} {light_idx:4d}"
             lamp_data = bpy.data.lights.new(name=f"{name} data", type='POINT')
             lamp_data.energy = 1.0
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
-            lamp_object.location = panel_matrix @ position
+            norm_position = pixel_matrix @ position
+            logging.debug('\t' + format_vector(norm_position))
+            lamp_object.location = panel_matrix @ norm_position
             coll.objects.link(lamp_object)
 
     logging.info(f"exporting {len(panels)} panels")

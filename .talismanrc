@@ -5,6 +5,6 @@ fileignoreconfig:
 - filename: LEDPortalSimulator/data/dome_render_6_5_LEDs_Compromise_LEDs.json
   checksum: fda1d022b647799f039086fab618cde3a8f88961d452c0d3eaeb80739f5a69e6
   ignore_detectors: []
-- filename: LEDPortalSimulator/data/dome_render_6_5_Plane_001_LEDs.json
-  checksum: 6e48cba8076c465e969e73647297b3185ca1e934c8b0e268125df0e948fcc76f
+- filename: LEDPortalSimulator/data/dome_render_6_5_Test_12_10_LEDs.json
+  checksum: a95b606f3f3df0465dcedb24a06c91d68630050b4f84e2598b86512d53a22452
   ignore_detectors: []

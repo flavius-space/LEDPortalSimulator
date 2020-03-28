@@ -21,7 +21,7 @@ String[] structures =  {
 	"dome_render_6_5_Left_Stack_FACES"
 };
 // String activeModel = "dome_render_6_5_LEDs_Compromise_LEDs";
-String activeModel = "dome_render_6_5_Plane_001_LEDs";
+String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance

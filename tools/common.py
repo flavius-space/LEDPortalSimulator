@@ -2,6 +2,8 @@ from contextlib import contextmanager
 import bpy
 from math import nan
 from mathutils import Vector
+import itertools
+import numpy as np
 import coloredlogs
 import json
 import re
@@ -30,17 +32,26 @@ def mode_set(mode):
         bpy.ops.object.mode_set(mode=prev_mode)
 
 
+def matrix_isclose(a, b, *args, **kwargs):
+    return all(np.isclose(
+        list(itertools.chain(*a)),
+        list(itertools.chain(*b)),
+        *args,
+        **kwargs
+    ))
+
+
 def format_vector(vec):
     mag = vec.magnitude
     if len(vec) == 3:
         theta = vec.to_2d().angle_signed(X_AXIS_2D) if vec.to_2d().magnitude > 0 else nan
         phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
-        return f"C({vec.x: 2.3f}, {vec.y: 2.3f}, {vec.z: 2.3f}) " \
-            f"P({mag: 2.3f}, {theta: 2.3f}, {phi: 2.3f})"
+        return f"C({vec.x: 7.3f}, {vec.y: 7.3f}, {vec.z: 7.3f}) " \
+            f"P({mag: 7.3f}, {theta: 7.3f}, {phi: 7.3f})"
     elif len(vec) == 2:
         theta = vec.angle_signed(X_AXIS_2D) if mag > 0 else nan
-        return f"C({vec.x: 2.3f}, {vec.y: 2.3f}) " \
-            f"P({mag: 2.3f}, {theta: 2.3f})"
+        return f"C({vec.x: 7.3f}, {vec.y: 7.3f}) " \
+            f"P({mag: 7.3f}, {theta: 7.3f})"
 
 
 def format_matrix(mat, name="Matrix", indent=1):
@@ -54,17 +65,22 @@ def format_matrix(mat, name="Matrix", indent=1):
     return out.replace('\n', ('\n' + (indent * '\t')))
 
 
-def setup_logger(log_file):
+def setup_logger(log_file=None, stream_log_level=None, file_log_level=None):
+    if stream_log_level is None:
+        stream_log_level = logging.INFO
+    if file_log_level is None:
+        file_log_level = logging.DEBUG
     logger = logging.getLogger()
     while logger.handlers:
         logger.removeHandler(logger.handlers[0])
-    logger.setLevel(logging.DEBUG)
-    file_handler = logging.FileHandler(log_file, 'w')
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
+    logger.setLevel(file_log_level)
+    if log_file is not None:
+        file_handler = logging.FileHandler(log_file, 'w')
+        file_handler.setLevel(file_log_level)
+        logger.addHandler(file_handler)
     if os.name != 'nt':
         stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.INFO)
+        stream_handler.setLevel(stream_log_level)
         stream_handler.setFormatter(coloredlogs.ColoredFormatter(LOG_STREAM_FMT))
         logger.addHandler(stream_handler)
 
