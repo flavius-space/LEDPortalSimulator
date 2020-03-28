@@ -300,14 +300,14 @@ def generate_lights_for_convex_polygon(
         row = []
         if horizontal_lines + right_offset > left_offset:
             for horizontal_idx in range(left_offset, horizontal_lines + right_offset):
-                row.append(Vector((horizontal_idx, vertical_idx, 0)))
+                row.append((horizontal_idx, vertical_idx))
         if serpentine and vertical_idx % 2:
             row = list(reversed(row))
         logging.debug(f"Row: {row}")
         # Sanity check:
         assert row_usage * (1-ATOL) < row_capacity
         lights.extend(row)
-    logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(format_vector, lights)))
+    logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(repr, lights)))
 
     return transformation, lights
 
@@ -431,7 +431,7 @@ def main():
             lamp_data = bpy.data.lights.new(name=f"{name} data", type='POINT')
             lamp_data.energy = 1.0
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
-            norm_position = pixel_matrix @ position
+            norm_position = pixel_matrix @ Vector((position[0], position[1], 0))
             logging.debug('\t' + format_vector(norm_position))
             lamp_object.location = panel_matrix @ norm_position
             coll.objects.link(lamp_object)

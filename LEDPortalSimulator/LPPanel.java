@@ -20,7 +20,7 @@ public class LPPanel {
             JSONArray ledList = panelConfig.getJSONArray("pixels");
             for(int i = 0; i < ledList.size(); i++) {
 				JSONArray led = ledList.getJSONArray(i);
-                this.leds.add(new PVector(led.getFloat(0), led.getFloat(1), led.getFloat(2)));
+                this.leds.add(new PVector(led.getInt(0), led.getInt(1), 0));
             }
 		}
 
