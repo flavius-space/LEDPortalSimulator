@@ -1,6 +1,8 @@
 """
 Script which uses the Blender API to generate a set of lights for all selected polygons in the
-currently selected mesh object. Optionally places lights in the blender scene for preview
+currently selected mesh group. Optionally places lights in the blender scene for preview.
+
+Light placement works on any coplanar tri / quad polygon, and is highly configurable.
 
 TODO:
 - make the following configurable in object properties:
@@ -31,8 +33,8 @@ try:
     sys.path.insert(0, THIS_DIR)
     import common
     imp.reload(common)  # dumb hacks because of blender's pycache settings
-    from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL, ORIGIN_3D,
-                        X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
+    from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
+                        ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
                         get_selected_polygons)
 finally:
     sys.path = PATH
