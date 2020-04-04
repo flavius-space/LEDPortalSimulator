@@ -40,28 +40,31 @@ void setup() {
 	lx.ui.setResizable(RESIZABLE);
 }
 
-	final String OPC_IP = "192.168.1.20";
-	// final String OPC_IP = "127.0.0.1";
-	final int OPC_PORT = 42069;
-	final byte OPC_CHANNEL = 0;
+final String OPC_IP = "192.168.1.20";
+// final String OPC_IP = "127.0.0.1";
+final int OPC_PORT = 42069;
+final byte OPC_CHANNEL = 0;
+final String SERIAL_PORT = "/dev/tty.usbserial-AD025M69";
 
 void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom components or output drivers here
 	try {
-		int[] firstNPoints = new int[999];
+		int[] firstNPoints = new int[1];
 		for (int i = 0; i < firstNPoints.length; ++i) {
 			firstNPoints[i] = i;
 		}
 
+		PixelBlazeExpanderOutput output = new PixelBlazeExpanderOutput(lx, this, SERIAL_PORT, firstNPoints);
+
 		// TCP:
 
 		// First N Points
-		OPCOutput output =
-			new OPCOutput(lx, OPC_IP, OPC_PORT, firstNPoints);
+		// OPCOutput output =
+		// 	new OPCOutput(lx, OPC_IP, OPC_PORT, firstNPoints);
 		// All points
 			// new OPCOutput(lx, OPC_IP, OPC_PORT, lx.model);
 
-		output.setChannel(OPC_CHANNEL);
+		// output.setChannel(OPC_CHANNEL);
 
 		// UDP:
 
@@ -78,7 +81,7 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 		// datagram.setChannel(OPC_CHANNEL);
 		// output.addDatagram(datagram);
 
-		// Add the datagram output to the LX engine
+		// Add the output to the LX engine
 		lx.addOutput(output);
 	} catch (Exception x) {
 		x.printStackTrace();
