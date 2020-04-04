@@ -52,20 +52,20 @@ public class PBCRC {
 	public long crc = LPByteUtils.uint32Max;
 
 	public void updateByte(byte b) {
-		int tableIndex = LPByteUtils.asUint8(LPByteUtils.asUint32(crc) ^ LPByteUtils.asUint32(b));
-		long newcrc = LPByteUtils.asUint32(table[tableIndex]) ^ LPByteUtils.asUint32(crc >> 8);
+		int tbl_idx = LPByteUtils.asUint8(LPByteUtils.asUint32(crc) ^ LPByteUtils.asUint32(b));
+		long newcrc = LPByteUtils.asUint32(table[tbl_idx]) ^ LPByteUtils.asUint32(crc >> 8);
 		if (debug) System.out.printf(
-			"byte: 0x%02x\n"
-			+ "(uint32)byte: 0x%08x\n"
+			"d: 0x%02x\n"
+			+ "(uint32_t)d: 0x%08x\n"
 			+ "crc: 0x%08x\n"
-			+ "(uint32)crc: 0x%08x\n"
-			+ "(uint32)crc ^ (uint32)b: 0x%08x\n"
-			+ "tableIndex: 0d%02d\n"
-			+ "table[tableIndex]: 0x%08x\n"
-			+ "(uint32)table[tableIndex]: 0x%08x\n"
+			+ "(uint32_t)crc: 0x%08x\n"
+			+ "(uint32_t)crc ^ (uint32_t)b: 0x%08x\n"
+			+ "tbl_idx: 0d%02d\n"
+			+ "crc_table[tbl_idx]: 0x%08x\n"
+			+ "(uint32_t)crc_table[tbl_idx]: 0x%08x\n"
 			+ "crc >> 8: 0x%08x\n"
-			+ "(uint32)crc >> 8: 0x%08x\n"
-			+ "(uint32)table[tableIndex] ^ (uint32)(crc >> 8): 0x%08x\n"
+			+ "(uint32_t)crc >> 8: 0x%08x\n"
+			+ "(uint32_t)crc_table[tbl_idx] ^ (uint32_t)(crc >> 8): 0x%08x\n"
 			+ "newcrc: 0x%08x\n"
 			,
 			b,
@@ -73,12 +73,12 @@ public class PBCRC {
 			crc,
 			LPByteUtils.asUint32(crc),
 			LPByteUtils.asUint32(crc) ^ LPByteUtils.asUint32(b),
-			tableIndex,
-			table[tableIndex],
-			LPByteUtils.asUint32(table[tableIndex]),
+			tbl_idx,
+			table[tbl_idx],
+			LPByteUtils.asUint32(table[tbl_idx]),
 			crc >> 8,
 			LPByteUtils.asUint32(crc >> 8),
-			LPByteUtils.asUint32(table[tableIndex]) ^ LPByteUtils.asUint32(crc >> 8),
+			LPByteUtils.asUint32(table[tbl_idx]) ^ LPByteUtils.asUint32(crc >> 8),
 			newcrc
 		);
 		crc = newcrc;
