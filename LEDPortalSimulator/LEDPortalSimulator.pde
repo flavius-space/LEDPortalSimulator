@@ -49,13 +49,19 @@ final String SERIAL_PORT = "/dev/tty.usbserial-AD025M69";
 void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom components or output drivers here
 	try {
-		int[] firstNPoints = new int[1];
-		for (int i = 0; i < firstNPoints.length; ++i) {
-			firstNPoints[i] = i;
+		int pointIndex = 0;
+		int nPoints = 400;
+		int nChannels = 7;
+		for (int channelNumber = 0; channelNumber < nChannels; channelNumber++) {
+			int[] points = new int[nPoints];
+			for (int i = 0; i < nPoints; i++) {
+				points[i] = pointIndex;
+				if (pointIndex < lx.total - 1) pointIndex++;
+			}
+			PixelBlazeExpanderOutput output = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
+			// PixelBlazeExpanderOutput output = new PixelBlazeExpanderAPA102Output(lx, this, SERIAL_PORT, channelNumber, points);
+			lx.addOutput(output);
 		}
-
-		PixelBlazeExpanderOutput output = new PixelBlazeExpanderOutput(lx, this, SERIAL_PORT, firstNPoints);
-
 		// TCP:
 
 		// First N Points
@@ -82,7 +88,7 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 		// output.addDatagram(datagram);
 
 		// Add the output to the LX engine
-		lx.addOutput(output);
+		// lx.addOutput(output);
 	} catch (Exception x) {
 		x.printStackTrace();
 	}

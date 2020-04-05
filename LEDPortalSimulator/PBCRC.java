@@ -3,7 +3,7 @@
  * PixelBlaze implementation of CRC
  */
 public class PBCRC {
-	public static final boolean debug = true;
+	public static final boolean debug = false;
 
 	public static long[] table = new long[]{ 0x00000000L, 0x77073096L, 0xee0e612cL,
 		0x990951baL, 0x076dc419L, 0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L,
@@ -98,11 +98,7 @@ public class PBCRC {
 		crc = LPByteUtils.uint32Max;
 	}
 
-	public long uartGetCrc() {
-		return LPByteUtils.asUint32(crc ^ LPByteUtils.uint32Max);
-	}
-
 	public byte[] toBytes() {
-		return LPByteUtils.uint32LEBytes(this.crc);
+		return LPByteUtils.uint32LEBytes(this.crc ^ LPByteUtils.uint32Max);
 	}
 }

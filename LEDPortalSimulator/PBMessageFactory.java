@@ -1,7 +1,9 @@
 public abstract class PBMessageFactory {
-	public PBCRC crc;
+	public static final boolean debug = false;
 	public static final int crcSize = LPByteUtils.uint32Bytes;
 	public final PBRecordType recordType;
+	public final int channel;
+	public PBCRC crc;
 	/**
 	 * Number of bytes between header and CRC when there are zero colors being sent.
 	 */
@@ -10,24 +12,25 @@ public abstract class PBMessageFactory {
 	 * Number of bytes occupied by each color
 	 */
 	public final int colorSize;
-	public PBMessageFactory(PBRecordType recordType, int baseSize, int colorSize) {
+	public PBMessageFactory(PBRecordType recordType, int channel, int baseSize, int colorSize) {
 		this.recordType = recordType;
+		this.channel = channel;
 		this.baseSize = baseSize;
 		this.colorSize = colorSize;
-		crc = new PBCRC();
+		this.crc = new PBCRC();
 	}
 
 	public PBMessageFactory(PBRecordType recordType) {
-		this(recordType, 0, 0);
+		this(recordType, 0, 0, 0);
 	}
 
 	/**
 	 * writeHeader
 	 * Write the header to the message buffer at offset
 	 */
-	public int writeHeader(byte[] message, int offset, int channel) {
+	public int writeHeader(byte[] message, int offset) {
 		int i=offset;
-		for(byte b : new PBHeader(channel, this.recordType).toBytes()) {
+		for(byte b : new PBHeader(this.channel, this.recordType).toBytes()) {
 			message[i++] = b;
 		};
 		return (i - offset);
@@ -53,11 +56,11 @@ public abstract class PBMessageFactory {
 	/**
 	 * Get the header and body of the message
 	*/
-	public byte[] getMessage(int channel, int[] colorIndices, int[] colors) {
+	public byte[] getMessage(int[] colorIndices, int[] colors) {
 		this.crc.reset();
 		final byte[] message = new byte[this.getMessageSize(colorIndices)];
 		int i=0;
-		i += this.writeHeader(message, i, channel);
+		i += this.writeHeader(message, i);
 		i += this.writeBody(message, i, colorIndices, colors);
 		this.crc.updateBytes(message, 0, i);
 		i += this.writeCRC(message, i);
@@ -65,6 +68,6 @@ public abstract class PBMessageFactory {
 	}
 
 	public byte[] getMessage() {
-		return getMessage(0, new int[]{}, new int[]{});
+		return getMessage(new int[]{}, new int[]{});
 	}
 }

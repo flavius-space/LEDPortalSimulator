@@ -2,12 +2,14 @@ import java.util.Arrays;
 import processing.serial.*;
 
 static abstract class LPSerialOutput extends LXOutput {
-	public static final boolean debug = true;
-	public Serial port;
+	public static final boolean debug = false;
+	public static HashMap<String, Serial> ports = new HashMap();
+	protected String serialPort;
 
 	public LPSerialOutput(LX lx, PApplet parent, String serialPort, int baudRate) {
 		super(lx, serialPort);
-		port = new Serial(parent, serialPort, baudRate);
+		this.serialPort = serialPort;
+		if(!ports.containsKey(serialPort)) ports.put(serialPort, new Serial(parent, serialPort, baudRate));
 	}
 
 	public void write(byte[] message) {
@@ -15,7 +17,7 @@ static abstract class LPSerialOutput extends LXOutput {
 		for (byte b: message) {
 			if (debug) System.out.printf("message[%03d] = 0x%02x\n", i++, b);
 		}
-		this.port.write(message);
+		ports.get(this.serialPort).write(message);
 	}
 }
 
@@ -28,33 +30,58 @@ public static int[] allPoints(LX lx) {
 	return points;
 }
 
-public class PixelBlazeExpanderOutput extends LPSerialOutput {
-
-	public final PBMessageFactory msgFactory;
-	public final PBMessageFactory drawAllFactory;
-	public int channelNumber=0;
+abstract public class PixelBlazeExpanderOutput extends LPSerialOutput {
+	// TODO: only one instance per serial device
+	public final List<PBMessageFactory> messageFactories;
+	public int channelNumber;
 	public int[] colorIndices;
 
-	public PixelBlazeExpanderOutput(LX lx, PApplet parent, String serialPort, int[] colorIndices) {
+	public PixelBlazeExpanderOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int[] colorIndices) {
 		super(lx, parent, serialPort, 2000000);
 		this.colorIndices = colorIndices;
-		// TODO: configure channel, protocol
-		this.msgFactory = new PBMessageFactoryWS281X(PBColorOrder.RGBW);
-		this.drawAllFactory = new PBMessageFactoryDrawAll();
-	}
-
-	public PixelBlazeExpanderOutput(LX lx, PApplet parent, String serialPort, LXFixture fixture) {
-		this(lx, parent, serialPort, LXFixture.Utils.getIndices(fixture));
-	}
-
-	public PixelBlazeExpanderOutput(LX lx, PApplet parent, String serialPort) {
-		this(lx, parent, serialPort, allPoints(lx));
+		this.channelNumber = channelNumber;
+		this.messageFactories = new ArrayList<PBMessageFactory>();
+		this.messageFactories.add(new PBMessageFactoryDrawAll());
 	}
 
 	@Override
 	protected void onSend(int[] colors) {
-		this.write(this.msgFactory.getMessage(this.channelNumber, this.colorIndices, colors));
-		this.write(this.drawAllFactory.getMessage());
+		for(PBMessageFactory messageFactory : this.messageFactories) {
+			this.write(messageFactory.getMessage(this.colorIndices, colors));
+		}
 	}
 }
 
+public class PixelBlazeExpanderWS281XOutput extends PixelBlazeExpanderOutput {
+	public PixelBlazeExpanderWS281XOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int[] colorIndices) {
+		super(lx, parent, serialPort, channelNumber, colorIndices);
+		this.messageFactories.add(0, new PBMessageFactoryWS281X(PBColorOrder.RGB, this.channelNumber));
+	}
+
+	public PixelBlazeExpanderWS281XOutput(LX lx, PApplet parent, String serialPort, int channelNumber, LXFixture fixture) {
+		this(lx, parent, serialPort, channelNumber, LXFixture.Utils.getIndices(fixture));
+	}
+
+	public PixelBlazeExpanderWS281XOutput(LX lx, PApplet parent, String serialPort, int channelNumber) {
+		this(lx, parent, serialPort, channelNumber, allPoints(lx));
+	}
+}
+
+
+public class PixelBlazeExpanderAPA102Output extends PixelBlazeExpanderOutput {
+	public static final int freq = 800000;
+	public static final int clockChannelNumber = 7;
+	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber, int[] colorIndices) {
+		super(lx, parent, serialPort, channelNumber, colorIndices);
+		this.messageFactories.add(0, new PBMessageFactoryAPA102Clock(this.clockChannelNumber, freq));
+		this.messageFactories.add(0, new PBMessageFactoryAPA102Data(PBColorOrder.RGBV, this.channelNumber, freq));
+	}
+
+	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber, LXFixture fixture) {
+		this(lx, parent, serialPort, channelNumber, LXFixture.Utils.getIndices(fixture));
+	}
+
+	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber) {
+		this(lx, parent, serialPort, channelNumber, allPoints(lx));
+	}
+}
