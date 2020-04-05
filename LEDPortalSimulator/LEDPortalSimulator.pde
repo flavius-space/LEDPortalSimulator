@@ -50,18 +50,21 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 	// Add custom components or output drivers here
 	try {
 		int pointIndex = 0;
-		int nPoints = 400;
-		int nChannels = 7;
+		int nPoints = 500;
+		int nChannels = 8;
+		PixelBlazeExpanderOutput output = new PixelBlazeExpanderParentOutput(lx, this, SERIAL_PORT);
 		for (int channelNumber = 0; channelNumber < nChannels; channelNumber++) {
 			int[] points = new int[nPoints];
 			for (int i = 0; i < nPoints; i++) {
 				points[i] = pointIndex;
 				if (pointIndex < lx.total - 1) pointIndex++;
 			}
-			PixelBlazeExpanderOutput output = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
-			// PixelBlazeExpanderOutput output = new PixelBlazeExpanderAPA102Output(lx, this, SERIAL_PORT, channelNumber, points);
-			lx.addOutput(output);
+			PixelBlazeExpanderOutput child = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
+			// PixelBlazeExpanderOutput child = new PixelBlazeExpanderAPA102Output(lx, this, SERIAL_PORT, channelNumber, points);
+			output.addChild(child);
 		}
+		PixelBlazeExpanderOutput sendAll = new PixelBlazeExpanderSendAllOutput(lx, this, SERIAL_PORT);
+		output.addChild(sendAll);
 		// TCP:
 
 		// First N Points
@@ -88,7 +91,7 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 		// output.addDatagram(datagram);
 
 		// Add the output to the LX engine
-		// lx.addOutput(output);
+		lx.addOutput(output);
 	} catch (Exception x) {
 		x.printStackTrace();
 	}

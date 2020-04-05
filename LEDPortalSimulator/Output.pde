@@ -33,15 +33,15 @@ public static int[] allPoints(LX lx) {
 abstract public class PixelBlazeExpanderOutput extends LPSerialOutput {
 	// TODO: only one instance per serial device
 	public final List<PBMessageFactory> messageFactories;
+	public static final int baudRate = 2000000;
 	public int channelNumber;
 	public int[] colorIndices;
 
 	public PixelBlazeExpanderOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int[] colorIndices) {
-		super(lx, parent, serialPort, 2000000);
+		super(lx, parent, serialPort, baudRate);
 		this.colorIndices = colorIndices;
 		this.channelNumber = channelNumber;
 		this.messageFactories = new ArrayList<PBMessageFactory>();
-		this.messageFactories.add(new PBMessageFactoryDrawAll());
 	}
 
 	@Override
@@ -49,6 +49,19 @@ abstract public class PixelBlazeExpanderOutput extends LPSerialOutput {
 		for(PBMessageFactory messageFactory : this.messageFactories) {
 			this.write(messageFactory.getMessage(this.colorIndices, colors));
 		}
+	}
+}
+
+public class PixelBlazeExpanderParentOutput extends PixelBlazeExpanderOutput {
+	public PixelBlazeExpanderParentOutput(LX lx, PApplet parent, String serialPort) {
+		super(lx, parent, serialPort, 0, new int[]{});
+	}
+}
+
+public class PixelBlazeExpanderSendAllOutput extends PixelBlazeExpanderOutput {
+	public PixelBlazeExpanderSendAllOutput(LX lx, PApplet parent, String serialPort) {
+		super(lx, parent, serialPort, 0, new int[]{});
+		this.messageFactories.add(new PBMessageFactoryDrawAll());
 	}
 }
 
