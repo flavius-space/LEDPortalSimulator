@@ -37,4 +37,6 @@ public enum PBColorOrder {
 		if(debug) System.out.println("}");
 		return result;
 	}
+
+	// TODO: write separate colorBytes for APA102
 }

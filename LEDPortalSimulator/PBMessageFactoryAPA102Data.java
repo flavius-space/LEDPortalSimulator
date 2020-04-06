@@ -18,12 +18,13 @@ public class PBMessageFactoryAPA102Data extends PBMessageFactoryData{
 		}
 		if (debug) System.out.printf("colorOrders: 0x%02x \n", this.colorOrder.colorOrder);
 		message[i++] = (byte) this.colorOrder.colorOrder;
-		if (debug) System.out.printf("padding?: 0x00 \n");
+		if (debug) System.out.printf("struct padding: 0x00 \n");
 		message[i++] = 0x00;
 		if (debug) System.out.printf("pixels: 0x%04x (%dd)\n", colorIndices.length, colorIndices.length);
 		for(byte b : LPByteUtils.uint16LEBytes(colorIndices.length)) {
 			message[i++] = b;
 		}
+		if (debug) System.out.printf("global brightness: 0x%02x\n", brightness);
 		for(int colorIdx : colorIndices) {
 			int c = 0;
 			for(byte b : this.colorOrder.colorBytes(colors[colorIdx])) {

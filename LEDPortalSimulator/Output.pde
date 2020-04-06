@@ -81,20 +81,24 @@ public class PixelBlazeExpanderWS281XOutput extends PixelBlazeExpanderOutput {
 }
 
 
-public class PixelBlazeExpanderAPA102Output extends PixelBlazeExpanderOutput {
-	public static final int freq = 800000;
-	public static final int clockChannelNumber = 7;
-	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber, int[] colorIndices) {
+public class PixelBlazeExpanderAPA102DataOutput extends PixelBlazeExpanderOutput {
+	public PixelBlazeExpanderAPA102DataOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int freq, int[] colorIndices) {
 		super(lx, parent, serialPort, channelNumber, colorIndices);
-		this.messageFactories.add(0, new PBMessageFactoryAPA102Clock(this.clockChannelNumber, freq));
 		this.messageFactories.add(0, new PBMessageFactoryAPA102Data(PBColorOrder.RGBV, this.channelNumber, freq));
 	}
 
-	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber, LXFixture fixture) {
-		this(lx, parent, serialPort, channelNumber, LXFixture.Utils.getIndices(fixture));
+	public PixelBlazeExpanderAPA102DataOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int freq, LXFixture fixture) {
+		this(lx, parent, serialPort, channelNumber, freq, LXFixture.Utils.getIndices(fixture));
 	}
 
-	public PixelBlazeExpanderAPA102Output(LX lx, PApplet parent, String serialPort, int channelNumber) {
-		this(lx, parent, serialPort, channelNumber, allPoints(lx));
+	public PixelBlazeExpanderAPA102DataOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int freq) {
+		this(lx, parent, serialPort, channelNumber, freq, allPoints(lx));
+	}
+}
+
+public class PixelBlazeExpanderAPA102ClockOutput extends PixelBlazeExpanderOutput {
+	public PixelBlazeExpanderAPA102ClockOutput(LX lx, PApplet parent, String serialPort, int channelNumber, int freq) {
+		super(lx, parent, serialPort, 0, new int[]{});
+		this.messageFactories.add(0, new PBMessageFactoryAPA102Clock(channelNumber, freq));
 	}
 }

@@ -15,8 +15,9 @@ public class PBHeader {
 		for(char c : magic.toCharArray()) {
 			message[i++] = (byte) c;
 		}
-		if (debug) System.out.printf("channel: %d\nrecordtype: %d\n", this.channel, this.recordType.value);
+		if (debug) System.out.printf("channel: %d\n", this.channel);
 		message[i++] = (byte) this.channel;
+		if (debug) System.out.printf("recordtype: %d (%s)\n", this.recordType.value, this.recordType.name());
 		message[i++] = (byte) this.recordType.value;
 
 		return message;
