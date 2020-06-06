@@ -1,10 +1,13 @@
-import os
 import imp
 import inspect
+import logging
+import os
 import sys
 import unittest
-import logging
-from mathutils import Vector, Matrix
+from math import inf, nan, pi, sqrt, tan
+
+import numpy as np
+from mathutils import Matrix, Vector
 
 THIS_FILE = inspect.stack()[-2].filename
 THIS_DIR = os.path.dirname(THIS_FILE)
@@ -18,7 +21,9 @@ try:
     sys.path.insert(0, TOOLS_DIR)
     import light_layout
     imp.reload(light_layout)
-    from light_layout import generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor, float_abs_ceil
+    from light_layout import (
+        generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
+        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run)
     import common
     imp.reload(common)
     from common import ATOL, matrix_isclose, setup_logger
@@ -43,10 +48,13 @@ class TestLightLayout(unittest.TestCase):
         expected_lights = [
             (0, 0),
             (1, 0),
+            (2, 0),
             (1, 1),
             (0, 1),
             (0, 2),
+            (1, 2),
             (0, 3),
+            (0, 4)
         ]
 
         # When
@@ -77,14 +85,7 @@ class TestLightLayout(unittest.TestCase):
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
         ])
-        expected_lights = [
-            (1, 0),
-            (2, 0),
-            (2, 1),
-            (1, 1),
-            (2, 2),
-            (2, 3),
-        ]
+        expected_lights = [(0, 0), (1, 0), (2, 0), (2, 1), (1, 1), (1, 2), (2, 2), (2, 3), (2, 4)]
 
         # When
         matrix, lights = generate_lights_for_convex_polygon(
@@ -109,12 +110,13 @@ class TestLightLayout(unittest.TestCase):
         z_height = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
         expected_matrix = Matrix([
-            [spacing, 0, 0, 0.185864],
+            [spacing, 0, 0, 0.180901],
             [0, spacing, 0, 0.1],
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
         ])
         expected_lights = [
+            (0, 0),
             (1, 0),
             (2, 0),
             (3, 0),
@@ -123,18 +125,22 @@ class TestLightLayout(unittest.TestCase):
             (3, 1),
             (2, 1),
             (1, 1),
+            (1, 2),
             (2, 2),
             (3, 2),
             (4, 2),
             (4, 3),
             (3, 3),
             (2, 3),
+            (2, 4),
             (3, 4),
             (4, 4),
             (4, 5),
             (3, 5),
+            (3, 6),
             (4, 6),
             (4, 7),
+            (4, 8)
         ]
 
         # When
@@ -167,11 +173,13 @@ class TestLightLayout(unittest.TestCase):
             [0, 0, 0, 1]
         ])
         expected_lights = [
+            (0, 0),
             (1, 0),
             (2, 0),
             (3, 0),
             (4, 0),
             (5, 0),
+            (6, 0),
             (5, 1),
             (4, 1),
             (3, 1),
@@ -181,6 +189,7 @@ class TestLightLayout(unittest.TestCase):
             (3, 2),
             (4, 2),
             (3, 3),
+            (3, 4)
         ]
 
         # When
@@ -192,6 +201,43 @@ class TestLightLayout(unittest.TestCase):
             vertices[-1].y,
             spacing,
             z_height
+        )
+
+        # Then
+        assert matrix_isclose(lights, expected_lights, atol=ATOL)
+        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+
+    def test_generate_lights_for_convex_polygon_iso_shear(self):
+        # Given
+        width = 2
+        height = sqrt(3)
+        gradient = sqrt(3)
+        spacing = 1
+        vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width/2, height))]
+        expected_matrix = Matrix([
+            [spacing, 1/2, 0, 0],
+            [0, sqrt(3)/2, 0, 0],
+            [0, 0, spacing, 0],
+            [0, 0, 0, 1]
+        ])
+        expected_lights = [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (1, 1),
+            (0, 1),
+            (0, 2)
+        ]
+
+        # When
+        matrix, lights = generate_lights_for_convex_polygon(
+            vertices[1].x,
+            vertices[2].x,
+            vertices[2].y,
+            vertices[-1].x,
+            vertices[-1].y,
+            spacing,
+            grid_gradient=gradient
         )
 
         # Then
@@ -290,6 +336,46 @@ class TestFloatOps(unittest.TestCase):
         assert float_abs_ceil(1-0.0000000000001) == 1
         assert float_abs_ceil(-1+.0000000000001) == -1
         assert float_abs_ceil(-1-0.0000000000001) == -1
+
+    def test_nan_divide(self):
+        assert nan_divide(1, 0.0000000000001) is nan
+        assert nan_divide(1, nan) == 0
+
+    def test_inf_divide(self):
+        assert inf_divide(inf, 0) == inf
+        assert inf_divide(10, 0) == inf
+        assert inf_divide(-inf, 0) == -inf
+        assert inf_divide(-10, 0) == -inf
+
+        assert inf_divide(inf, inf) == 0
+        assert inf_divide(0, inf) == 0
+        assert inf_divide(-inf, inf) == -0
+        assert inf_divide(-0, inf) == -0
+
+        assert inf_divide(inf, 0.0000000000001) == inf
+        assert inf_divide(inf, -0.0000000000001) == -inf
+        assert inf_divide(10, 0.0000000000001) == inf
+        assert inf_divide(10, -0.0000000000001) == -inf
+        assert inf_divide(-inf, 0.0000000000001) == -inf
+        assert inf_divide(-inf, -0.0000000000001) == inf
+        assert inf_divide(-10, 0.0000000000001) == -inf
+        assert inf_divide(-10, -0.0000000000001) == inf
+
+    def test_gradient_rise(self):
+        assert np.isclose(gradient_rise(tan(0*pi/6)), 0)
+        assert np.isclose(gradient_rise(tan(1*pi/6)), 1/2)
+        assert np.isclose(gradient_rise(tan(2*pi/6)), sqrt(3)/2)
+        assert np.isclose(gradient_rise(tan(3*pi/6)), 1)
+        assert np.isclose(gradient_rise(tan(4*pi/6)), -sqrt(3)/2)
+        assert np.isclose(gradient_rise(tan(5*pi/6)), -1/2)
+
+    def test_gradient_run(self):
+        assert np.isclose(gradient_run(tan(0*pi/6)), 1)
+        assert np.isclose(gradient_run(tan(1*pi/6)), sqrt(3)/2)
+        assert np.isclose(gradient_run(tan(2*pi/6)), 1/2)
+        assert np.isclose(gradient_run(tan(3*pi/6)), 0)
+        assert np.isclose(gradient_run(tan(4*pi/6)), 1/2)
+        assert np.isclose(gradient_run(tan(5*pi/6)), sqrt(3)/2)
 
 
 if __name__ == "__main__":
