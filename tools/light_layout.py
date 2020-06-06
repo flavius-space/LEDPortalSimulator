@@ -43,7 +43,8 @@ Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
 # LED_SPACING = 0.2
-LED_SPACING = 0.05
+LED_SPACING = 0.06
+SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
 IGNORE_LAMPS = False
 
@@ -300,9 +301,9 @@ def generate_lights_for_convex_polygon(
                        /-_|(pv)-__``-o(P2)/             <- P2: (quad right x, quad right height)
                       /  _|(sv)*_*``--\ /               <- sv: vertical spacing
                      / / _|(sv) * *`--_\
-                    / /* _|(sv)* * * */ \
+                    / /  _|(sv)* * *  / \
                    / / /*_|(sv) * * */ \ \
-                  / /*/* _|(sv)* * */*\*\ \                PMS: (margin_start, vertical_start)
+                  / / /* _|(sv)* * */*\ \ \                PMS: (margin_start, vertical_start)
                  / / /*/*_|(sv) * */*\*\ \ \               PS: (horizontal_start, vertical_start)
                 / / /*/* _|(sv)* */* *\*\ \ \              PE: (horizontal_end, vertical_start)
             (PMS)o_o(PS)*_|(sv)_*/*_*(PE)o_o(PME)       <- PME: (margin_end, vertical_start)
@@ -313,7 +314,7 @@ def generate_lights_for_convex_polygon(
              | | | |                     | | | |
          (Ml)|-| | | <- Ml: left margin  | | |-|(Mr)    <- Mr: right margin
            (pl)|-| | <- pl: left padding | |-|(pr)      <- pr: right padding
-             (sh)|-|                     |-|(sh)        <- sh: horizontal spacing
+              (s)|-|                     |-|(s)         <- s: spacing
 
 
     Args:
@@ -559,7 +560,8 @@ def main():
             panel_vertices[-1].y,
             LED_SPACING,
             Z_OFFSET,
-            LED_SPACING / 2,
+            margin=LED_SPACING / 2,
+            serpentine=SERPENTINE,
             grid_gradient=GRID_GRADIENT
         )
 

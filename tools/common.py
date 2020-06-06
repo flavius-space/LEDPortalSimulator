@@ -17,7 +17,7 @@ X_AXIS_2D = Vector((1, 0))
 TRI_VERTS = 3
 QUAD_VERTS = 4
 ENDLTAB = "\n\t"
-ATOL = 1e-4
+ATOL = 1e-3
 LOG_STREAM_FMT = "%(asctime)s %(levelname)s %(message)s"
 DATA_PATH = 'LEDPortalSimulator/data'
 
