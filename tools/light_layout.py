@@ -43,7 +43,7 @@ Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
 # LED_SPACING = 0.2
-LED_SPACING = 0.06
+LED_SPACING = 0.055
 SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
 IGNORE_LAMPS = False
@@ -328,8 +328,6 @@ def generate_lights_for_convex_polygon(
         margin (float): minimum spacing between polygon edges and pixels, default 0.0
         serpentine (bool): pixels alternate direction left and right default True
 
-
-
     TODO:
     - handle other polygon types
     """
@@ -408,30 +406,21 @@ def generate_lights_for_convex_polygon(
 
     lights = []
     for vertical_idx in range(vertical_lines):
+        logging.debug(f"Vertical Index: {vertical_idx}")
         # relative to pixel origin: (horizontal_start, vertical_start)
         pixel_y_relative = (vertical_idx * spacing_vertical)
-        logging.debug(f"Pixel Y Relative: {pixel_y_relative: 7.3f}")
+        pixel_y_absolute = pixel_y_relative + vertical_start
+        logging.debug(
+            f"Pixel Y Relative / Absolute: {pixel_y_relative: 7.3f} {pixel_y_absolute: 7.3f}")
         # x coordinate where row intesects with grid y-axis
         row_grid_origin_x = inf_divide(pixel_y_relative, grid_gradient)
         logging.debug(f"Row Grid Origin X: {row_grid_origin_x: 7.3f}")
 
         row_start_relative = inf_divide(pixel_y_relative, gradient_left)
-        # TODO:
-        # row_left_margin_relative = row_start_relative - left_margin
-        # row_grid_start = float_abs_ceil(
-        #     (row_left_margin_relative - row_grid_origin_x)/spacing)
-
-        # Number of grid spaces between grid y-axis and start of row
-        row_grid_start = float_abs_ceil(
-            (row_start_relative - row_grid_origin_x)/spacing)
+        row_grid_start = float_abs_ceil((row_start_relative - row_grid_origin_x)/spacing)
 
         row_end_relative = horizontal_usage + inf_divide(pixel_y_relative, gradient_right)
-        # TODO:
-        # row_right_margin_relative = row_end_relative + right_margin
-        # row_grid_end = float_abs_floor(
-        #     (row_right_margin_relative - row_grid_origin_x)/spacing)
-        row_grid_end = float_abs_floor(
-            (row_end_relative - row_grid_origin_x)/spacing)
+        row_grid_end = float_abs_floor((row_end_relative - row_grid_origin_x)/spacing)
 
         logging.debug(
             f"Row Start / End Relative: {row_start_relative: 7.3f} / {row_end_relative: 7.3f}")
@@ -502,7 +491,7 @@ def normalise_plane(center, normal, vertices):
     apex_x = normalised[2].x
     logging.debug(f"First Triangle Midpoint: {apex_x}")
     if len(vertices) == TRI_VERTS and tri_type in ['EQU', 'ISO']:
-        assert np.isclose(apex_x * 2, base_width, 1e-4), \
+        assert np.isclose(apex_x, base_width / 2, atol=ATOL), \
             f"apex {apex_x} should be half of Local width {base_width} for {tri_type}"
 
     return flattener.inverted() @ normaliser.inverted(), normalised
