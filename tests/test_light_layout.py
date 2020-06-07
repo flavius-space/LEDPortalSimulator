@@ -295,6 +295,26 @@ class TestLightLayout(unittest.TestCase):
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
         assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
 
+    def test_axis_centered_lines(self):
+        """
+        |m-|p|-s--|-s--|p|m-|
+        """
+        # Given
+        axis_length = 20.0
+        spacing = 5.0
+        margin = 3.0
+        expected_padding = 2.0
+        expected_lines = 3
+        expected_start = 5.0
+
+        # When
+        start, lines, padding = axis_centered_lines(axis_length, spacing, margin)
+
+        # Then
+        assert np.isclose(start, expected_start)
+        assert np.isclose(lines, expected_lines)
+        assert np.isclose(padding, expected_padding)
+
 
 class TestFloatOps(unittest.TestCase):
     def test_float_floor(self):

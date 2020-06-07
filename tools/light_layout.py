@@ -268,6 +268,37 @@ def float_abs_ceil(number):
         return closest_int
     return int(copysign(ceil(abs(number)), number))
 
+def axis_centered_lines(axis_length, spacing, left_margin, right_margin=None, axis_name=None):
+    """
+    Divide an axis into lines `spacing` units apart, centered on the space inside `axis_length` after
+    removing `left_margin` and `right_margin`. If `right_margin` is not provided, it is assumed to be the
+    same as `left_margin`
+
+    |--------------------|----X---------X----------X----|------------------|
+    ^- origin            |    ^- lines -^         -^    |                  |
+    |<- axis_length ------------------------------------------------------>|
+    |<- left_margin ---->|    |         |          |    |<- right_margin ->|
+    |          usable -> |<---------------------------->|                  |
+    |         padding -> |<-->|         |          |<-->|                  |
+    |              spacing -> |<------->|<-------->|    |                  |
+    """
+
+    if right_margin is None:
+        right_margin = left_margin
+
+    usable = height - (margin * 2)
+    lines = float_floor(usable / spacing_vertical) + 1
+    usage = spacing * (lines - 1)
+    assert \
+        usage < usable \
+        or np.isclose(usable - usage, 0, atol=ATOL), \
+        f"{axis_name + ' ' if axis_name else ''}axis usage {usage} >= usable {usable}"
+    padding = (usable - (spacing * (lines - 1))) / 2
+    start = margin + padding
+
+    return start, lines, padding
+
+
 
 def generate_lights_for_convex_polygon(
         base_width: float,
@@ -281,7 +312,7 @@ def generate_lights_for_convex_polygon(
         serpentine: bool = True,
         grid_gradient: float = inf,
 ):
-    r"""
+    """
     Geometric Assumptions:
         all points are coplanar
         polygon has already been flattened and normalised (see normalise_plane)
@@ -293,28 +324,24 @@ def generate_lights_for_convex_polygon(
         point -1 is top left of quad (quad_left_x, quad_left_height)
 
 
-                            mL                          <- left gradient
-                           /     mR                     <- right gradient
-                          /       \        mG           <- grid gradient
-                    (P-1)o_        \       /            <- P-1: (quad left x, quad left height)
-                        /_|(Mv)-__  \     /             <- Mv: vertical margin
-                       /-_|(pv)-__``-o(P2)/             <- P2: (quad right x, quad right height)
-                      /  _|(sv)*_*``--\ /               <- sv: vertical spacing
-                     / / _|(sv) * *`--_\
-                    / /  _|(sv)* * *  / \
-                   / / /*_|(sv) * * */ \ \
-                  / / /* _|(sv)* * */*\ \ \                PMS: (margin_start, vertical_start)
-                 / / /*/*_|(sv) * */*\*\ \ \               PS: (horizontal_start, vertical_start)
-                / / /*/* _|(sv)* */* *\*\ \ \              PE: (horizontal_end, vertical_start)
-            (PMS)o_o(PS)*_|(sv)_*/*_*(PE)o_o(PME)       <- PME: (margin_end, vertical_start)
-              /_/_/_/_____|(pv)_________\_\_\_\         <- Pv: vertical padding
-         (P0)o_/_/_/______|(Mv)__________\_\_\_o(P1)    <- P0: (0,0); PSh:
-             | | | |                     | | | |           Mv: vertical margin;
-             | | | |                     | | | |           P1: (base_width, 0)
-             | | | |                     | | | |
-         (Ml)|-| | | <- Ml: left margin  | | |-|(Mr)    <- Mr: right margin
-           (pl)|-| | <- pl: left padding | |-|(pr)      <- pr: right padding
-              (s)|-|                     |-|(s)         <- s: spacing
+                          mL                            <- left gradient
+                         ╱         mR                   <- right gradient
+                        ╱           ╲      mG           <- grid gradient
+                       ╱             ╲    /
+               │<- horizontal start width -->│
+               │     ╱                 ╲     |             P-1: (quad left x, quad left height)
+               |    o(P-1)__________(P2)o    |          <- P2: (quad right x, quad right height)
+               │   ╱ ╱ ╱__│(Mv)______/ ╲ ╲   │          <- Mv: vertical margin
+               │  ╱ ╱ ╱___│(pv)_____/_╲_╲_╲__│__
+               │ ╱ ╱ ╱* * * * * * */* *╲_╲_╲_│__|(sv)   <- sv: vertical spacing
+               │╱ ╱ ╱* * * * * * */* * *╲ ╲ ╲|             PS: (horizontal_start, vertical_start);
+               o_/_o(PS)*_*_*_*_*/*_*(PE)o_╲_o          <- PE: (horizontal_end, vertical_start)
+              ╱_╱_╱_______│(pv)___|_|_____╲_╲_╲         <- Pv: vertical padding
+         (P0)o_╱_╱________│(Mv)___|_|______╲_╲_o(P1)    <- P0: (0,0); P1: (base_width, 0)
+             │ │ │                |-|(s)   │ │ │        <- s: spacing
+             │ │ │                         │ │ │           Ml: left margin
+         (Ml)│-│ │                         │ │-│(Mr)    <- Mr: right margin
+           (ph)│-│                         │-│(ph)      <- ph: horizontal padding
 
 
     Args:
@@ -325,138 +352,69 @@ def generate_lights_for_convex_polygon(
         quad_left_height (float):
         spacing (float):
         z_height (float):
-        margin (float): minimum spacing between polygon edges and pixels, default 0.0
-        serpentine (bool): pixels alternate direction left and right default True
-
-
+        margin (float): minimum spacing between polygon edges and pixels, default: 0.0
+        serpentine (bool): pixels alternate direction between each row, default: True
+        grid_gradient (bool): determines how much each line of pixels is offset from the last
 
     TODO:
     - handle other polygon types
     """
     height = max([quad_left_height, quad_right_height])
-    logging.debug(f"Width (Base) / Height: {base_width: 7.3f} / {height: 7.3f}")
-    logging.debug(
-        f"Quad Left / Right (x, height): "
-        f"({quad_left_x: 7.3f}, {quad_left_height: 7.3f})"
-        f"({quad_right_x: 7.3f}, {quad_right_height: 7.3f})")
     gradient_left = inf_divide(quad_left_height, quad_left_x)
     gradient_right = inf_divide(quad_right_height, quad_right_x - base_width)
-    logging.debug(
-        f"Left / Right / Grid Gradients: "
-        f"{gradient_left: 7.3f} / {gradient_right: 7.3f} / {grid_gradient: 7.3f}")
     spacing_vertical = abs(gradient_rise(grid_gradient) * spacing)
     spacing_shear = abs(gradient_run(grid_gradient) * spacing)
-    logging.debug(
-        f"Horizontal / Vertical / Shear Spacing: "
-        f"{spacing: 7.3f} / {spacing_vertical: 7.3f} / {spacing_shear: 7.3f}")
-    logging.debug(f"Vertical Margin: {margin: 7.3f}")
-    vertical_usable = height - (margin * 2)
-    vertical_lines = float_floor(vertical_usable / spacing_vertical) + 1
-    vertical_usage = spacing_vertical * (vertical_lines - 1)
-    logging.debug(
-        f"Vertical Usable / Lines / Usage"
-        f"{vertical_usable: 7.5f} / {vertical_lines} / {vertical_usage}")
-    assert \
-        vertical_usage < vertical_usable \
-        or np.isclose(vertical_usable - vertical_usage, 0, atol=ATOL), \
-        f"Vertical usage {vertical_usage} >= usable {vertical_usable}"
-    vertical_padding = (vertical_usable - (spacing_vertical * (vertical_lines - 1))) / 2
-    vertical_start = margin + vertical_padding
-    logging.debug(f"Vertical Padding / Start: {vertical_padding: 7.3f} / {vertical_start: 7.3f}")
 
+    vertical_start, vertical_lines, vertical_padding = axis_centered_lines(
+        height, spacing_vertical, margin, axis_name="Vertical")
+
+    # Width of the horizontal line at `vertical_start` height
+    horizontal_start_width = width ╲
+        - inf_divide(vertical_start, gradient_left) ╲
+        + inf_divide(vertical_start, gradient_right)
+    # Width of the margin projected onto the horizontal axis at a right angle from each gradient
     left_margin = abs(margin/gradient_rise(gradient_left))
     right_margin = abs(margin/gradient_rise(gradient_right))
-    logging.debug(f"Left / Right Margin: {left_margin: 7.3f} / {right_margin: 7.3f}")
 
-    margin_start = left_margin + inf_divide(vertical_start, gradient_left)
-    margin_end = base_width - right_margin + inf_divide(vertical_start, gradient_right)
-    logging.debug(
-        f"Margin Start / End: "
-        f"{margin_start: 7.3f} / {margin_end: 7.3f}")
-
-    horizontal_usable = margin_end - margin_start
-    horizontal_lines = float_floor(horizontal_usable / spacing) + 1
+    horizontal_start, horizontal_lines, horizontal_padding = axis_centered_lines(
+        horizontal_start_width, spacing, margin_left, margin_right, axis_name="Horizontal")
     horizontal_usage = spacing * (horizontal_lines - 1)
-    logging.debug(
-        f"Horizontal Usable / Lines / Usage"
-        f"{horizontal_usable: 7.5f} / {horizontal_lines} / {horizontal_usage}")
-    assert \
-        horizontal_usage < horizontal_usable \
-        or np.isclose(horizontal_usable - horizontal_usage, 0, atol=ATOL), \
-        f"Horizontal usage {horizontal_usage} >= usable {horizontal_usable}"
-    horizontal_padding = (horizontal_usable - horizontal_usage) / 2
-    horizontal_start = margin_start + horizontal_padding
-    horizontal_end = margin_end - horizontal_padding
-    logging.debug(
-        f"Horizontal Padding / Start / End: "
-        f"{horizontal_padding: 7.5f} / {horizontal_start: 7.5f} / {horizontal_end: 7.5f}"
-    )
 
     translation = Matrix.Translation(Vector((
         horizontal_start, vertical_start, z_height
     )))
-    logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
     scale = Matrix([
         [spacing, spacing_shear, 0, 0],
         [0, spacing_vertical, 0, 0],
         [0, 0, spacing, 0],
         [0, 0, 0, 1],
     ])
-    logging.debug(f"Scale / Shear Matrix:" + ENDLTAB + format_matrix(scale))
     transformation = translation @ scale
-    logging.debug(f"Transformation Matrix:" + ENDLTAB + format_matrix(transformation))
 
     lights = []
     for vertical_idx in range(vertical_lines):
-        # relative to pixel origin: (horizontal_start, vertical_start)
         pixel_y_relative = (vertical_idx * spacing_vertical)
-        logging.debug(f"Pixel Y Relative: {pixel_y_relative: 7.3f}")
-        # x coordinate where row intesects with grid y-axis
         row_grid_origin_x = inf_divide(pixel_y_relative, grid_gradient)
-        logging.debug(f"Row Grid Origin X: {row_grid_origin_x: 7.3f}")
-
         row_start_relative = inf_divide(pixel_y_relative, gradient_left)
-        # TODO:
-        # row_left_margin_relative = row_start_relative - left_margin
-        # row_grid_start = float_abs_ceil(
-        #     (row_left_margin_relative - row_grid_origin_x)/spacing)
-
-        # Number of grid spaces between grid y-axis and start of row
         row_grid_start = float_abs_ceil(
             (row_start_relative - row_grid_origin_x)/spacing)
 
         row_end_relative = horizontal_usage + inf_divide(pixel_y_relative, gradient_right)
-        # TODO:
-        # row_right_margin_relative = row_end_relative + right_margin
-        # row_grid_end = float_abs_floor(
-        #     (row_right_margin_relative - row_grid_origin_x)/spacing)
         row_grid_end = float_abs_floor(
             (row_end_relative - row_grid_origin_x)/spacing)
-
-        logging.debug(
-            f"Row Start / End Relative: {row_start_relative: 7.3f} / {row_end_relative: 7.3f}")
-        logging.debug(f"Row Grid Start / End: {row_grid_start} / {row_grid_end}")
-
-        # Sanity check:
         row_capacity = abs(row_end_relative - row_start_relative)
         row_usage = max(row_grid_end - row_grid_start - 1, 0) * spacing
-        logging.debug(f"Row Capacity / Usage: {row_capacity: 7.3f} / {row_usage: 7.3f}")
         assert \
             row_usage < row_capacity \
             or np.isclose(row_capacity - row_usage, 0, atol=ATOL), \
             f"Row usage {row_usage} >= capacity {row_capacity}"
-
         row = []
         if row_grid_end >= row_grid_start:
             for horizontal_idx in range(row_grid_start, row_grid_end + 1):
                 row.append((horizontal_idx, vertical_idx))
-
         if serpentine and vertical_idx % 2:
             row = list(reversed(row))
-        logging.debug(f"Row: {row}")
-
         lights.extend(row)
-    logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(repr, lights)))
 
     return transformation, lights
 
