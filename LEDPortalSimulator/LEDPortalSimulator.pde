@@ -20,7 +20,7 @@ String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
 };
-String activeModel = "dome_render_6_5_LEDs_Compromise_LEDs";
+String activeModel = "dome_render_6_5_LEDs_Iso_1220_LEDs";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 
 void setup() {

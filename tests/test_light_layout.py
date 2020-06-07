@@ -23,7 +23,8 @@ try:
     imp.reload(light_layout)
     from light_layout import (
         generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
-        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run, axis_centered_lines)
+        float_abs_ceil, nan_divide, inf_divide, gradient_sin, gradient_cos, axis_centered_lines,
+        margin_intersect_offset, intersect_lines)
     import common
     imp.reload(common)
     from common import ATOL, matrix_isclose, setup_logger
@@ -110,11 +111,12 @@ class TestLightLayout(unittest.TestCase):
         z_height = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
         expected_matrix = Matrix([
-            [spacing, 0, 0, 0.180901],
-            [0, spacing, 0, 0.1],
+            [spacing, 0, 0, 0.190],
+            [0, spacing, 0, 0.138],
             [0, 0, spacing, z_height],
             [0, 0, 0, 1]
         ])
+
         expected_lights = [
             (0, 0),
             (1, 0),
@@ -207,7 +209,7 @@ class TestLightLayout(unittest.TestCase):
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
         assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
 
-    def test_generate_lights_for_convex_polygon_iso_shear(self):
+    def test_generate_lights_for_convex_polygon_equ_shear(self):
         # Given
         width = 2
         height = sqrt(3)
@@ -238,6 +240,53 @@ class TestLightLayout(unittest.TestCase):
             vertices[-1].y,
             spacing,
             grid_gradient=gradient
+        )
+
+        # Then
+        assert matrix_isclose(lights, expected_lights, atol=ATOL)
+        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+
+    def test_generate_lights_for_convex_polygon_equ_shear_margin(self):
+        r"""
+            /.\
+           //*\\
+          //* *\\
+         //*_*_*\\
+        -----------
+        """
+        # Given
+        width = 5
+        height = 2.5 * sqrt(3)
+        grid_gradient = sqrt(3)
+        spacing = 1
+        margin = sqrt(3)/2
+
+        vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width/2, height))]
+        expected_matrix = Matrix([
+            [spacing, 1/2, 0, 1.5],
+            [0, sqrt(3)/2, 0, sqrt(3)/2],
+            [0, 0, spacing, 0],
+            [0, 0, 0, 1]
+        ])
+        expected_lights = [
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (1, 1),
+            (0, 1),
+            (0, 2),
+        ]
+
+        # When
+        matrix, lights = generate_lights_for_convex_polygon(
+            vertices[1].x,
+            vertices[2].x,
+            vertices[2].y,
+            vertices[-1].x,
+            vertices[-1].y,
+            spacing,
+            margin=margin,
+            grid_gradient=grid_gradient
         )
 
         # Then
@@ -313,6 +362,82 @@ class TestLightLayout(unittest.TestCase):
         assert np.isclose(lines, expected_lines)
         assert np.isclose(padding, expected_padding)
 
+    def test_margin_itersect_offset_equ(self):
+        # Given
+        gradient_left = sqrt(3)
+        gradient_right = -sqrt(3)
+        base_width = 1875
+        margin = 650/2
+        expected = 650
+
+        # When
+        intersect = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+
+        # Then
+        assert np.isclose(expected, intersect, atol=1)
+
+    def test_margin_itersect_offset_parallellogram(self):
+        # Given
+        gradient_left = sqrt(3)
+        gradient_right = -sqrt(3)
+        base_width = 1875
+        margin = 650/2
+        expected = 650
+
+        # When
+        intersect = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+
+        # Then
+        assert np.isclose(expected, intersect, atol=1)
+
+    def test_margin_itersect_offset_square(self):
+        # Given
+        gradient_left = inf
+        gradient_right = inf
+        base_width = 1875
+        margin = 650/2
+        expected = None
+
+        # When
+        intersect = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+
+        # Then
+        assert expected == intersect
+
+    def test_margin_itersect_offset_right(self):
+        # Given
+        gradient_left = inf
+        gradient_right = -1
+        base_width = 6
+        margin = 1
+        expected = 2.41
+
+        # When
+        intersect = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+
+        # Then
+        assert np.isclose(expected, intersect, atol=0.01)
+
+    def test_margin_itersect_offset_right_flip(self):
+        # Given
+        gradient_left = 1
+        gradient_right = inf
+        base_width = 6
+        margin = 1
+        expected = 2.41
+
+        # When
+        intersect = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+
+        # Then
+        assert np.isclose(expected, intersect, atol=0.01)
+
+    def test_intersect_lines(self):
+        assert np.isclose(intersect_lines(inf, 0, -1, 1), (0, 1)).all()
+        assert np.isclose(intersect_lines(inf, 1, 1, -1), (1, 0)).all()
+        assert np.isclose(intersect_lines(1, 0, inf, 1), (1, 1)).all()
+        assert np.isclose(intersect_lines(inf, 1, -1, 4.586), (1, 3.586)).all()
+
 
 class TestFloatOps(unittest.TestCase):
     def test_float_floor(self):
@@ -379,21 +504,21 @@ class TestFloatOps(unittest.TestCase):
         assert inf_divide(-10, 0.0000000000001) == -inf
         assert inf_divide(-10, -0.0000000000001) == inf
 
-    def test_gradient_rise(self):
-        assert np.isclose(gradient_rise(tan(0*pi/6)), 0)
-        assert np.isclose(gradient_rise(tan(1*pi/6)), 1/2)
-        assert np.isclose(gradient_rise(tan(2*pi/6)), sqrt(3)/2)
-        assert np.isclose(gradient_rise(tan(3*pi/6)), 1)
-        assert np.isclose(gradient_rise(tan(4*pi/6)), -sqrt(3)/2)
-        assert np.isclose(gradient_rise(tan(5*pi/6)), -1/2)
+    def test_gradient_sin(self):
+        assert np.isclose(gradient_sin(tan(0*pi/6)), 0)
+        assert np.isclose(gradient_sin(tan(1*pi/6)), 1/2)
+        assert np.isclose(gradient_sin(tan(2*pi/6)), sqrt(3)/2)
+        assert np.isclose(gradient_sin(tan(3*pi/6)), 1)
+        assert np.isclose(gradient_sin(tan(4*pi/6)), -sqrt(3)/2)
+        assert np.isclose(gradient_sin(tan(5*pi/6)), -1/2)
 
-    def test_gradient_run(self):
-        assert np.isclose(gradient_run(tan(0*pi/6)), 1)
-        assert np.isclose(gradient_run(tan(1*pi/6)), sqrt(3)/2)
-        assert np.isclose(gradient_run(tan(2*pi/6)), 1/2)
-        assert np.isclose(gradient_run(tan(3*pi/6)), 0)
-        assert np.isclose(gradient_run(tan(4*pi/6)), 1/2)
-        assert np.isclose(gradient_run(tan(5*pi/6)), sqrt(3)/2)
+    def test_gradient_cos(self):
+        assert np.isclose(gradient_cos(tan(0*pi/6)), 1)
+        assert np.isclose(gradient_cos(tan(1*pi/6)), sqrt(3)/2)
+        assert np.isclose(gradient_cos(tan(2*pi/6)), 1/2)
+        assert np.isclose(gradient_cos(tan(3*pi/6)), 0)
+        assert np.isclose(gradient_cos(tan(4*pi/6)), 1/2)
+        assert np.isclose(gradient_cos(tan(5*pi/6)), sqrt(3)/2)
 
 
 if __name__ == "__main__":

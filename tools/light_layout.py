@@ -43,7 +43,8 @@ Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
 # LED_SPACING = 1.0/16
 # LED_SPACING = 0.2
-LED_SPACING = 0.055
+# LED_SPACING = 0.05601
+LED_SPACING = 1.409/26
 SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
 IGNORE_LAMPS = False
@@ -207,14 +208,15 @@ def inf_divide(quotient, dividend):
     return quotient / dividend
 
 
-def gradient_rise(gradient):
+def gradient_sin(gradient):
     """
-    get the length of the opposite side of a right triangle, angle=θ, hypotenuse=1
+    get the length of the opposite side of a right unit triangle, angle=θ
 
        /|
     1 / |
-     /  | <- rise
-    /θ__| <- 90
+     /  | <- sin θ
+    /θ__| <- θ, 90
+    |<->| <- cos θ
 
     gradient = rise / run = tan(theta)
     => theta = atan(gradient)
@@ -224,14 +226,14 @@ def gradient_rise(gradient):
     return sin(atan(gradient))
 
 
-def gradient_run(gradient):
+def gradient_cos(gradient):
     """
-    get the length of the adjacent side of a right triangle, angle=θ, hypotenuse=1
+    get the length of the adjacent side of a right unit triangle, angle=θ
        /|
     1 / |
-     /  |
-    /θ__| <- 90
-    |<->| <- run
+     /  | <- sin θ
+    /θ__| <- θ, 90
+    |<->| <- cos θ
 
     gradient = rise / run = tan(theta)
     => theta = atan(gradient)
@@ -307,6 +309,102 @@ def axis_centered_lines(axis_length, spacing, margin_left, margin_right=None, ax
     return lines, padding
 
 
+def intersect_lines(m1, c1, m2, c2):
+    """
+    line 1 = m1 * x + c1, (c1 is x-intercept in case of inf gradient)
+    line 2 = m2 * x + c2, (c2 is x-intercept in case of inf gradient)
+    """
+    if isinf(m1) and isinf(m2):
+        return None, None
+    if isinf(m1):
+        return c1, m2 * c1 + c2
+    elif isinf(m2):
+        return c2, m1 * c2 + c1
+    elif np.isclose(m1, m2, atol=ATOL):
+        return None, None
+    intersect_x = (c2 - c1) / (m1 - m2)
+    intersect_y = m1 * intersect_x + c1
+    return intersect_x, intersect_y
+
+
+def margin_intersect_offset(gradient_left, gradient_right, base_width, margin):
+    r"""
+             mL       <- gradient left
+        mR  /         <- gradient right
+         \ /\/        <- margin
+          x-/----     <- regular intersect
+         / \    |     <- intersect offset
+        / x-\----     <- margin intersect
+       / / \ \
+      / /   \ \
+     /_/_____\_\_____
+    o_/_______\_o___| <- margin
+    |<--------->|     <- base width
+
+    OR
+
+                         mL  <- gradient left
+                    mR  /    <- gradient right
+                    | /
+                    x----    <- regular intersect
+                  / |   |    <- intersect offset
+                / x-|----    <- margin intersect
+              / / | |
+            / /   | |
+          /_/_____|_|___
+        o_/_______|_o___|    <- margin
+        |<--------->|        <- base width
+    """
+
+    logging.debug(
+        f"Gradient Left / Right: "
+        f"{gradient_left: 7.3f} / {gradient_right: 7.3f}")
+
+    if isinf(gradient_left) and isinf(gradient_right):
+        return None
+
+    if np.isclose(gradient_left, gradient_right, atol=ATOL):
+        return None
+
+    regular_axis_intercept_left = 0
+    regular_axis_intercept_right = base_width if isinf(gradient_right) else \
+        - base_width * gradient_right
+
+    logging.debug(
+        f"Regular Axis Intercept Left / Right: "
+        f"{regular_axis_intercept_left: 7.3f} / {regular_axis_intercept_right:7.3f}")
+
+    regular_intersect_x, regular_intersect_y = intersect_lines(
+        gradient_left, regular_axis_intercept_left, gradient_right, regular_axis_intercept_right
+    )
+
+    if regular_intersect_x is None or regular_intersect_y is None:
+        return None
+
+    logging.debug(
+        f"Regular Intersect X / Y: "
+        f"{regular_intersect_x: 7.3f} / {regular_intersect_y:7.3f}")
+
+    margin_axis_intercept_left = margin if isinf(gradient_left) else \
+        - abs(margin / gradient_cos(gradient_left))
+    margin_axis_intercept_right = base_width - margin if isinf(gradient_right) else \
+        regular_axis_intercept_right - abs(margin / gradient_cos(gradient_right))
+
+    logging.debug(
+        f"Margin Axis Intercept Left / Right: "
+        f"{margin_axis_intercept_left: 7.3f} / {margin_axis_intercept_right:7.3f}")
+
+    margin_intersect_x, margin_intersect_y = intersect_lines(
+        gradient_left, margin_axis_intercept_left, gradient_right, margin_axis_intercept_right
+    )
+
+    logging.debug(
+        f"Margin Intersect X / Y: "
+        f"{margin_intersect_x: 7.3f} / {margin_intersect_y:7.3f}")
+
+    return regular_intersect_y - margin_intersect_y
+
+
 def generate_lights_for_convex_polygon(
         base_width: float,
         quad_right_x: float,
@@ -361,7 +459,8 @@ def generate_lights_for_convex_polygon(
         z_height (float):
         margin (float): minimum spacing between polygon edges and pixels, default: 0.0
         serpentine (bool): pixels alternate direction between each row, default: True
-        grid_gradient (bool): determines how much each line of pixels is offset from the last
+        grid_gradient (bool): determines how much each line of pixels is offset from the last. Inf
+            graadient means grid axes are 90 degrees
 
     TODO:
     - handle other polygon types
@@ -377,19 +476,24 @@ def generate_lights_for_convex_polygon(
     logging.debug(
         f"Left / Right / Grid Gradients: "
         f"{gradient_left: 7.3f} / {gradient_right: 7.3f} / {grid_gradient: 7.3f}")
-    spacing_vertical = abs(gradient_rise(grid_gradient) * spacing)
-    spacing_shear = abs(gradient_run(grid_gradient) * spacing)
+    spacing_vertical = abs(gradient_sin(grid_gradient) * spacing)
+    spacing_shear = abs(gradient_cos(grid_gradient) * spacing)
     logging.debug(
         f"Horizontal / Vertical / Shear Spacing: "
         f"{spacing: 7.3f} / {spacing_vertical: 7.3f} / {spacing_shear: 7.3f}")
-    logging.debug(f"Vertical Margin: {margin: 7.3f}")
+
+    margin_vertical_top = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
+    if margin_vertical_top is None:
+        margin_vertical_top = margin
+
+    logging.debug(f"Vertical / Top Margin: {margin: 7.3f} / {margin_vertical_top: 7.3f}")
 
     vertical_lines, vertical_padding = axis_centered_lines(
-        height, spacing_vertical, margin, axis_name="Vertical")
+        height, spacing_vertical, margin, margin_vertical_top, axis_name="Vertical")
     vertical_start = margin + vertical_padding
 
-    margin_left = abs(margin/gradient_rise(gradient_left))
-    margin_right = abs(margin/gradient_rise(gradient_right))
+    margin_left = abs(margin/gradient_sin(gradient_left))
+    margin_right = abs(margin/gradient_sin(gradient_right))
     logging.debug(f"Left / Right Margin: {margin_left: 7.3f} / {margin_right: 7.3f}")
 
     horizontal_start_width = base_width \
@@ -453,7 +557,7 @@ def generate_lights_for_convex_polygon(
 
         if serpentine and vertical_idx % 2:
             row = list(reversed(row))
-        logging.debug(f"Row: {row}")
+        logging.debug(f"Row ({len(row)}): {row}")
 
         lights.extend(row)
     logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(repr, lights)))
@@ -560,7 +664,7 @@ def main():
             panel_vertices[-1].y,
             LED_SPACING,
             Z_OFFSET,
-            margin=LED_SPACING / 2,
+            margin=abs(gradient_sin(GRID_GRADIENT) * LED_SPACING),
             serpentine=SERPENTINE,
             grid_gradient=GRID_GRADIENT
         )
