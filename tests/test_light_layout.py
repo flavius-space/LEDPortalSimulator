@@ -23,7 +23,7 @@ try:
     imp.reload(light_layout)
     from light_layout import (
         generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
-        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run)
+        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run, axis_centered_lines)
     import common
     imp.reload(common)
     from common import ATOL, matrix_isclose, setup_logger
@@ -294,6 +294,24 @@ class TestLightLayout(unittest.TestCase):
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
         assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+
+    def test_axis_centered_lines(self):
+        """
+        |m-|p|-s--|-s--|p|m-|
+        """
+        # Given
+        axis_length = 20.0
+        spacing = 5.0
+        margin = 3.0
+        expected_padding = 2.0
+        expected_lines = 3
+
+        # When
+        lines, padding = axis_centered_lines(axis_length, spacing, margin)
+
+        # Then
+        assert np.isclose(lines, expected_lines)
+        assert np.isclose(padding, expected_padding)
 
 
 class TestFloatOps(unittest.TestCase):
