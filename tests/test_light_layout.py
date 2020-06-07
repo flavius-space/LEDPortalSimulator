@@ -23,7 +23,7 @@ try:
     imp.reload(light_layout)
     from light_layout import (
         generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
-        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run)
+        float_abs_ceil, nan_divide, inf_divide, gradient_rise, gradient_run, axis_centered_lines)
     import common
     imp.reload(common)
     from common import ATOL, matrix_isclose, setup_logger

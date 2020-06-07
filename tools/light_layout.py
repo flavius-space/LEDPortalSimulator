@@ -268,36 +268,36 @@ def float_abs_ceil(number):
         return closest_int
     return int(copysign(ceil(abs(number)), number))
 
-def axis_centered_lines(axis_length, spacing, left_margin, right_margin=None, axis_name=None):
+
+def axis_centered_lines(axis_length, spacing, margin_left, margin_right=None, axis_name=None):
     """
-    Divide an axis into lines `spacing` units apart, centered on the space inside `axis_length` after
-    removing `left_margin` and `right_margin`. If `right_margin` is not provided, it is assumed to be the
-    same as `left_margin`
+    Divide an axis into lines `spacing` units apart, centered on the space inside `axis_length`
+    after removing `margin_left` and `margin_right`. If `margin_right` is not provided, it is
+    assumed to be the same as `margin_left`
 
     |--------------------|----X---------X----------X----|------------------|
     ^- origin            |    ^- lines -^         -^    |                  |
     |<- axis_length ------------------------------------------------------>|
-    |<- left_margin ---->|    |         |          |    |<- right_margin ->|
+    |<- margin_left ---->|    |         |          |    |<- margin_right ->|
     |          usable -> |<---------------------------->|                  |
     |         padding -> |<-->|         |          |<-->|                  |
     |              spacing -> |<------->|<-------->|    |                  |
     """
 
-    if right_margin is None:
-        right_margin = left_margin
+    if margin_right is None:
+        margin_right = margin_left
 
-    usable = height - (margin * 2)
-    lines = float_floor(usable / spacing_vertical) + 1
+    usable = axis_length - margin_left - margin_right
+    lines = float_floor(usable / spacing) + 1
     usage = spacing * (lines - 1)
     assert \
         usage < usable \
         or np.isclose(usable - usage, 0, atol=ATOL), \
         f"{axis_name + ' ' if axis_name else ''}axis usage {usage} >= usable {usable}"
     padding = (usable - (spacing * (lines - 1))) / 2
-    start = margin + padding
+    start = margin_left + padding
 
     return start, lines, padding
-
 
 
 def generate_lights_for_convex_polygon(
@@ -369,12 +369,12 @@ def generate_lights_for_convex_polygon(
         height, spacing_vertical, margin, axis_name="Vertical")
 
     # Width of the horizontal line at `vertical_start` height
-    horizontal_start_width = width ╲
-        - inf_divide(vertical_start, gradient_left) ╲
+    horizontal_start_width = base_width \
+        - inf_divide(vertical_start, gradient_left) \
         + inf_divide(vertical_start, gradient_right)
     # Width of the margin projected onto the horizontal axis at a right angle from each gradient
-    left_margin = abs(margin/gradient_rise(gradient_left))
-    right_margin = abs(margin/gradient_rise(gradient_right))
+    margin_left = abs(margin/gradient_rise(gradient_left))
+    margin_right = abs(margin/gradient_rise(gradient_right))
 
     horizontal_start, horizontal_lines, horizontal_padding = axis_centered_lines(
         horizontal_start_width, spacing, margin_left, margin_right, axis_name="Horizontal")
