@@ -94,7 +94,7 @@ def serialise_matrix(mat):
 
 
 def sanitise_names(*names):
-    return re.subn(r"\W+", "_", "_".join(names))
+    return re.subn(r"\W+", "_", "_".join(names))[0]
 
 
 def get_sanitised_modelname():
@@ -104,7 +104,7 @@ def get_sanitised_modelname():
 
 def export_json(obj, serialised, suffix):
     model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
-    sanitised, _ = sanitise_names(model_name, obj.name, suffix)
+    sanitised = sanitise_names(model_name, obj.name, suffix)
     out_path = os.path.join(DATA_PATH, f"{sanitised}.json")
     logging.info(f"exporting to {out_path}")
     with open(out_path, 'w') as stream:
