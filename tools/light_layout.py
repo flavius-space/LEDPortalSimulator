@@ -589,9 +589,9 @@ def format_vecs(*vecs):
 
 def main():
     setup_logger(LOG_FILE)
-    logging.info(f"*** Starting Light Layout {datetime.now().isoformat()} ***")
+    logging.info(f"*** Starting Light Layout ***")
     obj = bpy.context.object
-    logging.info(f"Selected object: {obj}")
+    logging.info(f"Selected object: {obj.name}")
     logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
     if not IGNORE_LAMPS:
         with mode_set('OBJECT'):
@@ -600,7 +600,9 @@ def main():
 
     panels = []
 
-    for poly_idx, polygon in enumerate(get_selected_polygons(obj)):
+    selected_polygons, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
+
+    for poly_idx, polygon in enumerate(selected_polygons):
 
         panel = {}
 
@@ -635,7 +637,7 @@ def main():
             panel_vertices[-1].y,
             LED_SPACING,
             Z_OFFSET,
-            margin=abs(gradient_sin(GRID_GRADIENT) * LED_SPACING),
+            margin=LED_MARGIN,
             serpentine=SERPENTINE,
             grid_gradient=GRID_GRADIENT
         )
@@ -662,10 +664,10 @@ def main():
             lamp_object.location = panel_matrix @ norm_position
             coll.objects.link(lamp_object)
 
-    logging.info(f"exporting {len(panels)} panels")
-    export_json(obj, {'panels': panels}, 'LEDs')
+    logging.info(f"exporting {len(panels)} {EXPORT_TYPE.lower()}")
+    export_json(obj, {EXPORT_TYPE.lower(): panels}, suffix)
 
-    logging.info(f"*** Completed Light Layout {datetime.now().isoformat()} ***")
+    logging.info(f"*** Completed Light Layout ***")
 
 
 if __name__ == '__main__':

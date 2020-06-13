@@ -15,7 +15,7 @@ try:
     sys.path.insert(0, THIS_DIR)
     imp.reload(__import__('common'))  # dumb hacks because of blender's pycache settings
     from common import (ENDLTAB, format_matrix, setup_logger, serialise_matrix, export_json,
-                        get_selected_polygons, apply_to_selected_objects)
+                        get_selected_polygons_suffix, apply_to_selected_objects)
 finally:
     sys.path = PATH
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
@@ -32,7 +32,9 @@ def serialise_object(obj, method):
     edges = set()
     polygons = []
 
-    for poly_idx, polygon in enumerate(get_selected_polygons(obj)):
+    selected_polygons, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
+
+    for poly_idx, polygon in enumerate(selected_polygons):
 
         logging.debug(f"Vertex IDs:" + ENDLTAB + pformat(list(polygon.vertices)))
 

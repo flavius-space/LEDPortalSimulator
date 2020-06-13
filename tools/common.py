@@ -93,13 +93,21 @@ def serialise_matrix(mat):
     return [serialise_vector(vec) for vec in mat]
 
 
+def sanitise_names(*names):
+    return re.subn(r"\W+", "_", "_".join(names))
+
+
+def get_sanitised_modelname():
+    model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
+    return sanitise_names(model_name)
+
+
 def export_json(obj, serialised, suffix):
     model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
-    obj_name = obj.name
-    sanitised, _ = re.subn(r"\W+", "_", f"{model_name}_{obj_name}_{suffix}")
-    sanitised = os.path.join(DATA_PATH, f"{sanitised}.json")
-    logging.info(f"exporting to {sanitised}")
-    with open(sanitised, 'w') as stream:
+    sanitised, _ = sanitise_names(model_name, obj.name, suffix)
+    out_path = os.path.join(DATA_PATH, f"{sanitised}.json")
+    logging.info(f"exporting to {out_path}")
+    with open(out_path, 'w') as stream:
         json.dump(serialised, stream, indent=4)
 
 
@@ -112,12 +120,24 @@ def apply_to_selected_objects(fun, *args, **kwargs):
         yield fun(obj, *args, **kwargs)
 
 
-def get_selected_polygons(obj):
+def get_selected_polygons_suffix(obj, type_plural='polygons'):
+    """
+    if not all polygons are selected, then a suffix can be added to the export file to
+    differentiate exports of different selections.
+    """
+
+    suffix = f"ALL {type_plural.upper()}"
     if bpy.context.object.mode == 'EDIT':
-        selections = [
+        selectable = [
             (polygon, polygon.select)
             for polygon in obj.data.polygons
         ]
-        logging.info(f"Polygon Selections: \n{pformat(selections)}")
-        return [polygon for polygon in obj.data.polygons if polygon.select]
-    return obj.data.polygons
+        logging.info(f"Selectable Polygons: \n{pformat(selectable)}")
+
+        selected_indices, selected_polygons = map(list, zip(*[
+            [index, polygon] for index, polygon in enumerate(obj.data.polygons)
+            if polygon.select
+        ]))
+        suffix = f"{type_plural.upper()} " + ' '.join(map(str, selected_indices))
+        return selected_polygons, suffix
+    return obj.data.polygons, suffix
