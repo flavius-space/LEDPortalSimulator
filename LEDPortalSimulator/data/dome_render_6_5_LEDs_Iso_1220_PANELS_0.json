@@ -1,6 +1,7 @@
 {
     "panels": [
         {
+            "name": "LEDs_Iso_1220.PANELS[0]",
             "vertices": [
                 [
                     -3.259629011154175e-09,

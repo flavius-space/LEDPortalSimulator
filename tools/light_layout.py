@@ -36,7 +36,7 @@ try:
     imp.reload(common)  # dumb hacks because of blender's pycache settings
     from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
                         ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
-                        get_selected_polygons_suffix)
+                        get_selected_polygons_suffix, sanitise_names)
 finally:
     sys.path = PATH
 
@@ -604,7 +604,12 @@ def main():
 
     for poly_idx, polygon in enumerate(selected_polygons):
 
-        panel = {}
+        name = f"{sanitise_names(obj.name)}.{EXPORT_TYPE}[{poly_idx}]"
+        logging.info(f"polygon name: {name}")
+
+        panel = {
+            'name': name
+        }
 
         world_center = obj.matrix_world @ polygon.center
         logging.debug(
