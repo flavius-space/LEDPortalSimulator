@@ -13,7 +13,6 @@ public class Simplex extends LXPattern {
 		addParameter(palette);
 		addParameter(spaceScale);
 		addParameter(timeScale);
-		startModulator(RateLfo);
 		simplexNoise = new SimplexNoise();
 	}
 
@@ -38,12 +37,6 @@ public class Simplex extends LXPattern {
 	public final CompoundParameter timeScale = new CompoundParameter("Time Scale", 0.1, 0.0, 1.0)
 	 .setDescription("How quickly the lumps jiggle");
 
-	public final SinLFO RateLfo = new SinLFO(
-		2,
-		20,
-		45
-		);
-
 	public void run(double deltaMs) {
 		float spaceScaleVal = (float)spaceScale.getValue();
 		float timeScaleVal = (float)timeScale.getValue();
@@ -62,8 +55,8 @@ public class Simplex extends LXPattern {
 			case 0:
 				//separate out a red, green and blue shade from the plasma wave
 				red = map(sinTable.sin(shade*PI), -1, 1, 0, brightness);
-				green =  map(sinTable.sin(shade*PI+(2*cosTable.cos(movement*490))), -1, 1, 0, brightness);            //*cos(movement*490) makes the colors morph over the top of each other
-				blue = map(sinTable.sin(shade*PI+(4*sinTable.sin(movement*300))), -1, 1, 0, brightness);
+				green =  map(sinTable.sin(shade*PI+(2*cosTable.cos(movement*10))), -1, 1, 0, brightness);            //*cos(movement*490) makes the colors morph over the top of each other
+				blue = map(sinTable.sin(shade*PI+(4*sinTable.sin(movement*13))), -1, 1, 0, brightness);
 				break;
 			case 1:
 				//separate out a red, green and blue shade from the plasma wave
@@ -82,7 +75,7 @@ public class Simplex extends LXPattern {
 			//ready to populate this color!
 			setColor(p.index, LXColor.rgb((int)red,(int)green, (int)blue));
 		}
-		movement +=((float)RateLfo.getValue() / 100000) * timeScaleVal;
+		movement += (timeScaleVal * timeScaleVal) / 1000;
 	}
 }
 
