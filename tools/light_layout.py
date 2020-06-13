@@ -18,12 +18,14 @@ import os
 import sys
 from datetime import datetime
 from itertools import starmap
-from math import atan, ceil, copysign, cos, floor, inf, isinf, nan, sin, sqrt
+from math import ceil, copysign, floor, inf, isinf, nan, sqrt
 from pprint import pformat
 
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
+
+from trig import gradient_cos, gradient_sin
 
 THIS_FILE = inspect.stack()[-2].filename
 THIS_DIR = os.path.dirname(THIS_FILE)
@@ -34,7 +36,7 @@ try:
     imp.reload(common)  # dumb hacks because of blender's pycache settings
     from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
                         ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
-                        get_selected_polygons)
+                        get_selected_polygons_suffix)
 finally:
     sys.path = PATH
 
@@ -47,7 +49,11 @@ COLLECTION_NAME = 'LEDs'
 LED_SPACING = 1.409/26
 SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
+LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
+# LED_MARGIN = 0.0
+# GRID_GRADIENT = inf
 IGNORE_LAMPS = False
+EXPORT_TYPE = 'PANELS'
 
 
 # def plot_vecs_2d(vecs):
@@ -206,41 +212,6 @@ def inf_divide(quotient, dividend):
     if isinf(dividend):
         return copysign(0, sign)
     return quotient / dividend
-
-
-def gradient_sin(gradient):
-    """
-    get the length of the opposite side of a right unit triangle, angle=θ
-
-       /|
-    1 / |
-     /  | <- sin θ
-    /θ__| <- θ, 90
-    |<->| <- cos θ
-
-    gradient = rise / run = tan(theta)
-    => theta = atan(gradient)
-    sin(theta) = rise / 1
-    => rise = sin(atan(gradient))
-    """
-    return sin(atan(gradient))
-
-
-def gradient_cos(gradient):
-    """
-    get the length of the adjacent side of a right unit triangle, angle=θ
-       /|
-    1 / |
-     /  | <- sin θ
-    /θ__| <- θ, 90
-    |<->| <- cos θ
-
-    gradient = rise / run = tan(theta)
-    => theta = atan(gradient)
-    cos(theta) = run / 1
-    => rise = cos(atan(gradient))
-    """
-    return cos(atan(gradient))
 
 
 def float_floor(number):

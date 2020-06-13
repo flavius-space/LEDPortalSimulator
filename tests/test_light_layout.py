@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import unittest
-from math import inf, nan, pi, sqrt, tan
+from math import inf, nan, sqrt
 
 import numpy as np
 from mathutils import Matrix, Vector
@@ -23,7 +23,7 @@ try:
     imp.reload(light_layout)
     from light_layout import (
         generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
-        float_abs_ceil, nan_divide, inf_divide, gradient_sin, gradient_cos, axis_centered_lines,
+        float_abs_ceil, nan_divide, inf_divide, axis_centered_lines,
         margin_intersect_offset, intersect_lines)
     import common
     imp.reload(common)
@@ -503,22 +503,6 @@ class TestFloatOps(unittest.TestCase):
         assert inf_divide(-inf, -0.0000000000001) == inf
         assert inf_divide(-10, 0.0000000000001) == -inf
         assert inf_divide(-10, -0.0000000000001) == inf
-
-    def test_gradient_sin(self):
-        assert np.isclose(gradient_sin(tan(0*pi/6)), 0)
-        assert np.isclose(gradient_sin(tan(1*pi/6)), 1/2)
-        assert np.isclose(gradient_sin(tan(2*pi/6)), sqrt(3)/2)
-        assert np.isclose(gradient_sin(tan(3*pi/6)), 1)
-        assert np.isclose(gradient_sin(tan(4*pi/6)), -sqrt(3)/2)
-        assert np.isclose(gradient_sin(tan(5*pi/6)), -1/2)
-
-    def test_gradient_cos(self):
-        assert np.isclose(gradient_cos(tan(0*pi/6)), 1)
-        assert np.isclose(gradient_cos(tan(1*pi/6)), sqrt(3)/2)
-        assert np.isclose(gradient_cos(tan(2*pi/6)), 1/2)
-        assert np.isclose(gradient_cos(tan(3*pi/6)), 0)
-        assert np.isclose(gradient_cos(tan(4*pi/6)), 1/2)
-        assert np.isclose(gradient_cos(tan(5*pi/6)), sqrt(3)/2)
 
 
 if __name__ == "__main__":

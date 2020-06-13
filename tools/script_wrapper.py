@@ -10,6 +10,7 @@ TESTS_DIR = os.path.join(REPO_DIR, 'tests')
 
 things_to_run = [
     (TESTS_DIR, 'test_light_layout'),
+    (TESTS_DIR, 'test_trig'),
     (TOOLS_DIR, 'light_layout')
 ]
 
@@ -26,6 +27,8 @@ for thing in things_to_run:
 
     filename = os.path.join(*thing) + '.py'
     try:
-        exec(compile(open(filename).read(), filename, 'exec'))
+        result = exec(compile(open(filename).read(), filename, 'exec'))
+        print(f"result for thing {thing}: {repr(result)}")
     except Exception:
         traceback.print_exc()
+        break
