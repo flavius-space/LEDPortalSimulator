@@ -1,11 +1,15 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import processing.data.JSONObject;
 import processing.data.JSONArray;
 import processing.core.PMatrix3D;
 import processing.core.PVector;
 
 public class LPPanel extends LPMeshable {
+	private static final Logger logger = Logger.getLogger(LPPanel.class.getName());
 	public List<PVector> leds;
     public LPPanel() {
         leds = new ArrayList<PVector>();
@@ -17,7 +21,8 @@ public class LPPanel extends LPMeshable {
     public LPPanel updateFromJSONObject(JSONObject jsonConfig) {
 		super.updateFromJSONObject(jsonConfig);
         if(jsonConfig.hasKey("pixels")) {
-            JSONArray ledList = jsonConfig.getJSONArray("pixels");
+			JSONArray ledList = jsonConfig.getJSONArray("pixels");
+			logger.info(String.format("has %d pixels", ledList.size()));
             for(int i = 0; i < ledList.size(); i++) {
 				JSONArray led = ledList.getJSONArray(i);
                 this.leds.add(new PVector(led.getInt(0), led.getInt(1), 0));

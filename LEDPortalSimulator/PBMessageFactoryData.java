@@ -1,13 +1,15 @@
+import java.util.logging.Logger;
 /**
  * PBMessageFactoryData
  */
 public abstract class PBMessageFactoryData extends PBMessageFactory{
+	private static final Logger logger = Logger.getLogger(PBMessageFactoryData.class.getName());
 	public final PBColorOrder colorOrder;
 	public static final int bytesPerChannel = 2048;
 	public PBMessageFactoryData(PBRecordType recordType, int channel, int baseSize, PBColorOrder colorOrder) {
 		super(recordType, channel, baseSize, colorOrder.numElements);
 		this.colorOrder = colorOrder;
-		if (debug) System.out.printf("colorOrder: %s\n", this.colorOrder.name());
+		logger.fine(String.format("colorOrder: %s\n", this.colorOrder.name()));
 	}
 	/**
 	 * Calculate the number of bytes required to store these colors on the PixelBlaze buffer.

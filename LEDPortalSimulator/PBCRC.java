@@ -1,9 +1,11 @@
+import java.util.logging.Logger;
+
 /**
  * PBCRC
  * PixelBlaze implementation of CRC
  */
 public class PBCRC {
-	public static final boolean debug = false;
+	private static final Logger logger = Logger.getLogger(PBCRC.class.getName());
 
 	public static long[] table = new long[]{ 0x00000000L, 0x77073096L, 0xee0e612cL,
 		0x990951baL, 0x076dc419L, 0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L,
@@ -54,7 +56,7 @@ public class PBCRC {
 	public void updateByte(byte b) {
 		int tbl_idx = LPByteUtils.asUint8(LPByteUtils.asUint32(crc) ^ LPByteUtils.asUint32(b));
 		long newcrc = LPByteUtils.asUint32(table[tbl_idx]) ^ LPByteUtils.asUint32(crc >> 8);
-		if (debug) System.out.printf(
+		logger.fine(String.format(
 			"d: 0x%02x\n"
 			+ "(uint32_t)d: 0x%08x\n"
 			+ "crc: 0x%08x\n"
@@ -80,7 +82,7 @@ public class PBCRC {
 			LPByteUtils.asUint32(crc >> 8),
 			LPByteUtils.asUint32(table[tbl_idx]) ^ LPByteUtils.asUint32(crc >> 8),
 			newcrc
-		);
+		));
 		crc = newcrc;
 	}
 

@@ -1,7 +1,11 @@
+import java.util.logging.Logger;
+
 /**
  * PBMessageFactoryAPA102Data
  */
 public class PBMessageFactoryAPA102Data extends PBMessageFactoryData{
+	private static final Logger logger = Logger.getLogger(
+		PBMessageFactoryAPA102Data.class.getName());
 	public final long freq;
 	public byte brightness = 0x1f;
 	public PBMessageFactoryAPA102Data(final PBColorOrder colorOrder, int channel, long freq) {
@@ -12,19 +16,20 @@ public class PBMessageFactoryAPA102Data extends PBMessageFactoryData{
 	protected int writeBody(byte[] message, int offset, int[] colorIndices, int[] colors) {
 		this.validate(colorIndices);
 		int i=offset;
-		if (debug) System.out.printf("freq: 0x%08x (%dd)\n", this.freq, this.freq);
+		logger.fine(String.format("freq: 0x%08x (%dd)\n", this.freq, this.freq));
 		for(byte b : LPByteUtils.uint32LEBytes(this.freq)) {
 			message[i++] = b;
 		}
-		if (debug) System.out.printf("colorOrders: 0x%02x \n", this.colorOrder.colorOrder);
+		logger.fine(String.format("colorOrders: 0x%02x \n", this.colorOrder.colorOrder));
 		message[i++] = (byte) this.colorOrder.colorOrder;
-		if (debug) System.out.printf("struct padding: 0x00 \n");
+		logger.fine(String.format("struct padding: 0x00 \n"));
 		message[i++] = 0x00;
-		if (debug) System.out.printf("pixels: 0x%04x (%dd)\n", colorIndices.length, colorIndices.length);
+		logger.fine(String.format(
+			"pixels: 0x%04x (%dd)\n", colorIndices.length, colorIndices.length));
 		for(byte b : LPByteUtils.uint16LEBytes(colorIndices.length)) {
 			message[i++] = b;
 		}
-		if (debug) System.out.printf("global brightness: 0x%02x\n", brightness);
+		logger.fine(String.format("global brightness: 0x%02x\n", brightness));
 		for(int colorIdx : colorIndices) {
 			int c = 0;
 			for(byte b : this.colorOrder.colorBytes(colors[colorIdx])) {

@@ -1,11 +1,14 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
+
 import processing.data.JSONObject;
 import processing.data.JSONArray;
 import processing.core.PMatrix3D;
 import processing.core.PVector;
 
 public class LPSimConfig {
+	private static final Logger logger = Logger.getLogger(LPMeshable.class.getName());
     public List<LPPanel> panels;
     public List<LPStructure> structures;
     // public float ledSize = (float)1.0;
@@ -39,16 +42,18 @@ public class LPSimConfig {
 		int nVertices = 0;
 		for(LPPanel panel : this.panels) {
 			for(PVector vertex: panel.getWorldVertices()) {
-				System.out.printf("position: %s, vertex: %s\n", position, vertex);
+				logger.info(String.format(
+					"position: %s, vertex: %s", LPMeshable.formatPVector(position),
+					LPMeshable.formatPVector(vertex)));
 				// position = position.mult((float)nVertices/(nVertices + 1));
 				// vertex = vertex.mult((float)1/(nVertices + 1));
-				// System.out.printf("scaled position: %s, vertex: %s\n", position, vertex);
+				// logger.info(String.format("scaled position: %s, vertex: %s", position, vertex));
 				position = position.add(vertex);
 				nVertices++;
 			}
 		}
 		position.div(nVertices);
-		System.out.printf("final position %s", position);
+		logger.info(String.format("final position %s", LPMeshable.formatPVector(position)));
 		matrix.translate(position.x, position.y, position.z);
 		return matrix;
 	}

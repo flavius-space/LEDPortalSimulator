@@ -11,9 +11,10 @@
  * PURPOSE, WITH RESPECT TO THE SOFTWARE.
  */
 
+import java.util.logging.Logger;
 heronarts.lx.studio.LXStudio lx;
 
-// UISkeleton skele;
+private static final Logger logger = Logger.getLogger(PApplet.class.getName());
 LXModel model;
 LPSimConfig config;
 String[] structures =  {

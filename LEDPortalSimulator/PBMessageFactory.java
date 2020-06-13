@@ -1,5 +1,7 @@
+import java.util.logging.Logger;
+
 public abstract class PBMessageFactory {
-	public static final boolean debug = false;
+	private static final Logger logger = Logger.getLogger(PBMessageFactory.class.getName());
 	public static final int crcSize = LPByteUtils.uint32Bytes;
 	public final PBRecordType recordType;
 	public final int channel;

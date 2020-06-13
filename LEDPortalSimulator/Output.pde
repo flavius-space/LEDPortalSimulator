@@ -1,8 +1,9 @@
 import java.util.Arrays;
 import processing.serial.*;
+import java.util.logging.Logger;
 
 static abstract class LPSerialOutput extends LXOutput {
-	public static final boolean debug = false;
+	private static final Logger logger = Logger.getLogger(LPSerialOutput.class.getName());
 	public static HashMap<String, Serial> ports = new HashMap();
 	protected String serialPort;
 
@@ -15,7 +16,7 @@ static abstract class LPSerialOutput extends LXOutput {
 	public void write(byte[] message) {
 		int i = 0;
 		for (byte b: message) {
-			if (debug) System.out.printf("message[%03d] = 0x%02x\n", i++, b);
+			logger.fine(String.format("message[%03d] = 0x%02x\n", i++, b));
 		}
 		ports.get(this.serialPort).write(message);
 	}

@@ -1,9 +1,11 @@
+import java.util.logging.Logger;
+
 public enum PBColorOrder {
 	RGBW(0, 1, 2, 3),
 	RGBV(0, 1, 2, -1),
 	RGB(0, 1, 2)
 	;
-	public static final boolean debug = false;
+	private static final Logger logger = Logger.getLogger(PBColorOrder.class.getName());
 	public byte colorOrder;
 	public final byte numElements;
 	public static final int[] LXColorIdxLookup = new int[]{2, 1, 0, 3};
@@ -28,13 +30,14 @@ public enum PBColorOrder {
 	public byte[] colorBytes(int color) {
 		byte[] result = new byte[this.numElements];
 		char[] colorNames = new char[]{'r', 'g', 'b', 'w'};
-		if(debug) System.out.print("color: {");
+		String message = "color: {";
 		for(int colorIdx=0; colorIdx<this.numElements; colorIdx++) {
 			int index = (this.colorOrder >> (2 * colorIdx)) & 0b11;
 			result[index] = LPByteUtils.asByte(color >> (8 * LXColorIdxLookup[colorIdx]) & LPByteUtils.uint8Max);
-			if(debug) System.out.printf("%c: 0x%02x; ", colorNames[colorIdx], result[index]);
+			message += String.format("%c: 0x%02x; ", colorNames[colorIdx], result[index]);
 		}
-		if(debug) System.out.println("}");
+		message += "}";
+		logger.fine(message);
 		return result;
 	}
 
