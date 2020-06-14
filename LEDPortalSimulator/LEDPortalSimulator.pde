@@ -31,6 +31,10 @@ String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 String activeMovie = null;
 
+PMatrix3D flattener;
+PMatrix3D unFlattener;
+float[][] flatBounds;
+
 void setup() {
 	// Processing setup, constructs the window and the LX instance
 	size(1280, 720, P3D);
@@ -41,6 +45,9 @@ void setup() {
 		config.updateFromJSONObject(loadJSONObject(structure + ".json"));
 	}
 	model = modelFromPanels(config.panels);
+	flattener = config.getWorldFlattener();
+	unFlattener = config.getWorldUnFlattener();
+	flatBounds = config.getModelFlattenedBounds();
 
 	debugSetup();
 
@@ -54,6 +61,7 @@ void setup() {
 
 void debugSetup() {
 	List<PVector> modelWorldPoints = new ArrayList<PVector>();
+
 	for(LPPanel panel : config.panels) {
 		List<PVector> worldPoints = panel.getWorldVertices();
 		PVector centroid = panel.getWorldCentroid();
@@ -63,6 +71,14 @@ void debugSetup() {
 		worldPoints.add(PVector.add(centroid, normal));
 		LPStructure panelStruct = new LPStructure().updateFromPlaneDebugPoints(worldPoints);
 		config.debugStructures.add(panelStruct);
+
+		List<PVector> flattenedWorldPoints = new ArrayList<PVector>();
+		for(PVector point: worldPoints) {
+			flattenedWorldPoints.add(LPMeshable.coordinateTransform(flattener, point));
+		}
+		LPStructure flattenedPanelStruct = new LPStructure()
+			.updateFromPlaneDebugPoints(flattenedWorldPoints);
+		config.debugStructures.add(flattenedPanelStruct);
 	}
 
 	PVector modelWorldCentroid = config.getWorldCentroid();
@@ -72,11 +88,9 @@ void debugSetup() {
 	LPStructure modelStruct = new LPStructure().updateFromPlaneDebugPoints(modelWorldPoints);
 	config.debugStructures.add(modelStruct);
 
-	PMatrix3D flattener = config.getWorldFlattener();
-
 	List<PVector> flattenedModelWorldPoints = new ArrayList<PVector>();
 	for(PVector point: modelWorldPoints) {
-		flattenedModelWorldPoints.add(LPMeshable.getWorldCoordinate(flattener, point));
+		flattenedModelWorldPoints.add(LPMeshable.coordinateTransform(flattener, point));
 	}
 
 	LPStructure flattenedModelStruct = new LPStructure()
@@ -85,6 +99,15 @@ void debugSetup() {
 
 	logger.info(String.format("flattenedModelWorldPoints: %s", LPMeshable.formatPVectorList(flattenedModelWorldPoints)));
 
+	List<PVector> flatBoundsPolygon = new ArrayList<PVector>();
+	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][1]));
+	flatBoundsPolygon.add(new PVector(flatBounds[1][0], flatBounds[1][1]));
+
+	LPStructure flatBoundsStruct = new LPStructure()
+		.updateFromPolygon(flatBoundsPolygon);
+	config.debugStructures.add(flatBoundsStruct);
 }
 
 void movieSetup() {
@@ -177,15 +200,15 @@ void onUIReady(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI 
 
 void onUIReadyMovie(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	if(movie == null) movieSetup();
-	PMatrix3D unFlattener = config.getWorldUnFlattener();
 	List<float[]> vertexUVPairs = new ArrayList<float[]>();
-	vertexUVPairs.add(new float[]{0, 0, 0, 0, movie.height});
-	vertexUVPairs.add(new float[]{1, 0, 0, movie.width, movie.height});
-	vertexUVPairs.add(new float[]{1, 1, 0, movie.width, 0});
-	vertexUVPairs.add(new float[]{0, 1, 0, 0, 0});
+
+	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][0], 0, 0, movie.height});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][0], 0, movie.width, movie.height});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][1], 0, movie.width, 0});
+	vertexUVPairs.add(new float[]{flatBounds[1][0], flatBounds[1][1], 0, 0, 0});
 	for(float[] vertexUVPair : vertexUVPairs) {
 		PVector uvPosition = new PVector(vertexUVPair[0], vertexUVPair[1], vertexUVPair[2]);
-		PVector unflattened = LPMeshable.getWorldCoordinate(unFlattener, uvPosition);
+		PVector unflattened = LPMeshable.coordinateTransform(unFlattener, uvPosition);
 		vertexUVPair[0] = unflattened.x;
 		vertexUVPair[1] = unflattened.y;
 		vertexUVPair[2] = unflattened.z;

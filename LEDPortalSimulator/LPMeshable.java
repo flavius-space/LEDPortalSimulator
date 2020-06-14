@@ -96,9 +96,9 @@ public abstract class LPMeshable {
 	public List<PVector> getWorldVertices() {
 		List<PVector> worldVertices = new ArrayList<PVector>();
 		for(PVector vertex : this.vertices) {
-			worldVertices.add(getWorldCoordinate(this.matrix, vertex));
+			worldVertices.add(getWorldCoordinate(vertex));
 		}
-		logger.info(String.format("world vertices: %s", formatPVectorList(worldVertices)));
+		logger.fine(String.format("world vertices: %s", formatPVectorList(worldVertices)));
 		return worldVertices;
 	}
 
@@ -108,7 +108,7 @@ public abstract class LPMeshable {
 			result = result.add(point);
 		}
 		result.div(points.size());
-		logger.info(String.format("centroid %s", LPMeshable.formatPVector(result)));
+		logger.fine(String.format("centroid %s", LPMeshable.formatPVector(result)));
 		return result;
 	}
 
@@ -123,7 +123,7 @@ public abstract class LPMeshable {
 		PVector anticlockwise = PVector.sub(points.get(2), points.get(0));
 		PVector clockwise = PVector.sub(points.get(1), points.get(0));
 		PVector result = clockwise.cross(anticlockwise);
-		logger.info(String.format("normal %s", LPMeshable.formatPVector(result)));
+		logger.fine(String.format("normal %s", LPMeshable.formatPVector(result)));
 		return result;
 	}
 
@@ -195,19 +195,19 @@ public abstract class LPMeshable {
 	public List<PVector[]> getWorldEdges() {
 		List<PVector[]> worldEdges = new ArrayList<PVector[]>();
 		for(int[] edge : this.edges) {
-			PVector start = getWorldCoordinate(this.matrix, this.vertices.get(edge[0]));
-			PVector end = getWorldCoordinate(this.matrix, this.vertices.get(edge[1]));
+			PVector start = getWorldCoordinate(this.vertices.get(edge[0]));
+			PVector end = getWorldCoordinate(this.vertices.get(edge[1]));
 			worldEdges.add(new PVector[]{start, end});
 		}
 		return worldEdges;
 	}
 
 	public static PVector coordinateTransform(PMatrix3D matrix, PVector local) {
-		PVector world = local;
 		if (matrix != null) {
-			world = matrix.mult(local, null);
+			return matrix.mult(local.copy(), null);
+		} else {
+			return local.copy();
 		}
-		return world;
 	}
 
 	public static PVector getUICoordinate(PVector world) {
@@ -218,7 +218,7 @@ public abstract class LPMeshable {
 		return coordinateTransform(worldToUI, world);
 	}
 
-	public static PVector getWorldCoordinate(PMatrix3D matrix, PVector local) {
+	public PVector getWorldCoordinate(PVector local) {
 		return coordinateTransform(matrix, local);
 	}
 
@@ -280,4 +280,39 @@ public abstract class LPMeshable {
 
         return this;
 	}
+
+	/**
+	 * Determine the bounds (min and max) in each axis
+	 * @return
+	 */
+	public static float[][] getAxisBounds(List<PVector> points) {
+
+		float[][] axisBounds = new float[][]{
+			new float[]{Float.MAX_VALUE, Float.MIN_VALUE},
+			new float[]{Float.MAX_VALUE, Float.MIN_VALUE},
+			new float[]{Float.MAX_VALUE, Float.MIN_VALUE}
+		};
+		for(PVector point: points) {
+			float[] coordinates = point.array();
+			for(int i=0; i<3; i++) {
+				if(coordinates[i] < axisBounds[i][0]) {
+					axisBounds[i][0] = coordinates[i];
+				}
+				if(coordinates[i] > axisBounds[i][1]) {
+					axisBounds[i][1] = coordinates[i];
+				}
+			}
+		}
+
+		logger.info(String.format(
+			"axisBounds: %7.3f < X < %7.3f ; %7.3f < Y < %7.3f; %7.3f < Z < %7.3f",
+			axisBounds[0][0], axisBounds[0][1],
+			axisBounds[1][0], axisBounds[1][1],
+			axisBounds[2][0], axisBounds[2][1]
+		));
+
+		return axisBounds;
+	}
+
+
 }

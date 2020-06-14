@@ -23,4 +23,16 @@ public class LPStructure extends LPMeshable {
 		}
         return this;
 	}
+
+	public LPStructure updateFromPolygon(List<PVector> vertices) {
+		for(PVector vertex: vertices) {
+			this.vertices.add(vertex);
+			int size = this.vertices.size();
+			if(size >= 2) {
+				this.edges.add(new int[]{size - 2, size - 1});
+			}
+		}
+		this.edges.add(new int[]{this.vertices.size() - 1, 0});
+        return this;
+	}
 }

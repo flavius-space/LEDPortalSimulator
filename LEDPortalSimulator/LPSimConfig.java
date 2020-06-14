@@ -63,4 +63,30 @@ public class LPSimConfig {
 		PMatrix3D flattener = LPMeshable.getUnFlattener(centroid, normal);
 		return flattener;
 	}
+
+	/**
+	 * Flatten the panels in the model, and determine the bounds in the x and y axes
+	 * @return
+	 */
+	public float[][] getModelFlattenedBounds() {
+		PMatrix3D flattener = getWorldFlattener();
+
+		float[][] axisBounds = new float[][]{
+			new float[]{Float.MAX_VALUE, Float.MIN_VALUE},
+			new float[]{Float.MAX_VALUE, Float.MIN_VALUE}
+		};
+
+		List<PVector> modelFlattenedPoints = new ArrayList<PVector>();
+
+		for(LPPanel panel : panels) {
+			for(PVector vertex: panel.getWorldVertices()) {
+				modelFlattenedPoints.add(LPMeshable.coordinateTransform(flattener, vertex));
+			}
+		}
+
+		logger.info(String.format(
+			"flattened points: %s", LPMeshable.formatPVectorList(modelFlattenedPoints)));
+
+		return LPMeshable.getAxisBounds(modelFlattenedPoints);
+	}
 }

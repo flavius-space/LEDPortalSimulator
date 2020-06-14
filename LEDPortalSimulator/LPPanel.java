@@ -44,9 +44,9 @@ public class LPPanel extends LPMeshable {
 	public List<PVector> getWorldPixels() {
 		List<PVector> worldPixels = new ArrayList<PVector>();
 		for(PVector led : this.leds) {
-			worldPixels.add(getPixelCoordinate(getWorldCoordinate(this.matrix, led)));
+			worldPixels.add(getPixelCoordinate(getWorldCoordinate(led)));
 		}
-		logger.info(String.format("world pixels: %s", formatPVectorList(worldPixels)));
+		logger.fine(String.format("world pixels: %s", formatPVectorList(worldPixels)));
 		return worldPixels;
 	}
 
