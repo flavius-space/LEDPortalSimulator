@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from functools import reduce
 from itertools import starmap
 from math import ceil, copysign, floor, inf, isinf, nan, sqrt
 from pprint import pformat
@@ -34,9 +35,9 @@ try:
     sys.path.insert(0, THIS_DIR)
     import common
     imp.reload(common)  # dumb hacks because of blender's pycache settings
-    from common import (Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS, ATOL,
-                        ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix, export_json,
-                        get_selected_polygons_suffix, sanitise_names)
+    from common import (Y_AXIS_3D, Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS,
+                        ATOL, ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix,
+                        export_json, get_selected_polygons_suffix, sanitise_names, matrix_isclose)
 finally:
     sys.path = PATH
 
@@ -390,6 +391,7 @@ def generate_lights_for_convex_polygon(
 ):
     r"""
     Geometric Assumptions:
+        all points are in the same coordinate system
         all points are coplanar
         polygon has already been flattened and normalised (see normalise_plane)
         points 0, 1, 2 and -1 are convex
@@ -436,6 +438,12 @@ def generate_lights_for_convex_polygon(
     TODO:
     - handle other polygon types
     """
+    logging.debug(
+        f"Spacing: {spacing: 7.3f}\n"
+        f"Z Height: {z_height: 7.3f}\n"
+        f"Margin: {margin: 7.3f}\n"
+        f"Grid Gradient: {grid_gradient: 7.3f}"
+    )
     height = max([quad_left_height, quad_right_height])
     logging.debug(f"Width (Base) / Height: {base_width: 7.3f} / {height: 7.3f}")
     logging.debug(
@@ -475,20 +483,6 @@ def generate_lights_for_convex_polygon(
         horizontal_start_width, spacing, margin_left, margin_right, axis_name="Horizontal")
     horizontal_usage = spacing * (horizontal_lines - 1)
     horizontal_start = margin_left + inf_divide(vertical_start, gradient_left) + horizontal_padding
-
-    translation = Matrix.Translation(Vector((
-        horizontal_start, vertical_start, z_height
-    )))
-    logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
-    scale = Matrix([
-        [spacing, spacing_shear, 0, 0],
-        [0, spacing_vertical, 0, 0],
-        [0, 0, spacing, 0],
-        [0, 0, 0, 1],
-    ])
-    logging.debug(f"Scale / Shear Matrix:" + ENDLTAB + format_matrix(scale))
-    transformation = translation @ scale
-    logging.debug(f"Transformation Matrix:" + ENDLTAB + format_matrix(transformation))
 
     lights = []
     for vertical_idx in range(vertical_lines):
@@ -533,7 +527,39 @@ def generate_lights_for_convex_polygon(
         lights.extend(row)
     logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(repr, lights)))
 
-    return transformation, lights
+    # Calculate transformation matrix and inverse
+
+    transformation_components = [
+        (Matrix.Translation, [Vector((horizontal_start, vertical_start, z_height))]),
+        (Matrix.Scale, [gradient_sin(grid_gradient), 4, Y_AXIS_3D]),
+        (Matrix.Shear, ['XZ', 4, (gradient_cos(grid_gradient), 0)]),
+        (Matrix.Scale, [spacing, 4]),
+    ]
+    logging.debug(f"Transformation Matrix Components:" + ENDLTAB + ENDLTAB.join([
+        ENDLTAB.join([
+            f"{component_type.__name__}(*{component_args})",
+            format_matrix(component_type(*component_args))
+        ])
+        for component_type, component_args in transformation_components
+    ]))
+
+    transformation = reduce(lambda m, n: n @ m, reversed([
+        component_type(*component_args)
+        for component_type, component_args in transformation_components
+    ]))
+    inv_transformation = reduce(lambda m, n: n @ m, [
+        component_type(*component_args).inverted()
+        for component_type, component_args in transformation_components
+    ])
+
+    logging.debug(f"Transformation / Inverse / Identity Matrix:" + ENDLTAB + ENDLTAB.join([
+        format_matrix(matrix) for matrix in [
+            transformation, inv_transformation, transformation @ inv_transformation]
+    ]))
+
+    assert matrix_isclose(transformation @ inv_transformation, Matrix.Identity(4), atol=ATOL)
+
+    return inv_transformation, transformation, lights
 
 
 def normalise_plane(center, normal, vertices):
@@ -578,7 +604,7 @@ def normalise_plane(center, normal, vertices):
     logging.debug(f"First Triangle Midpoint: {apex_x}")
     if len(vertices) == TRI_VERTS and tri_type in ['EQU', 'ISO']:
         assert np.isclose(apex_x, base_width / 2, atol=ATOL), \
-            f"apex {apex_x} should be half of Local width {base_width} for {tri_type}"
+            f"Apex X {apex_x} should be half of Local Width {base_width} for tri-type {tri_type}"
 
     return flattener.inverted() @ normaliser.inverted(), normalised
 
@@ -632,9 +658,7 @@ def main():
             world_center, world_normal, world_vertices
         )
 
-        panel['vertices'] = serialise_matrix(panel_vertices)
-
-        pixel_matrix, pixels = generate_lights_for_convex_polygon(
+        inv_pixel_matrix, pixel_matrix, pixels = generate_lights_for_convex_polygon(
             panel_vertices[1].x,
             panel_vertices[2].x,
             panel_vertices[2].y,
@@ -647,8 +671,15 @@ def main():
             grid_gradient=GRID_GRADIENT
         )
 
-        panel['matrix'] = serialise_matrix(panel_matrix @ pixel_matrix)
+        panel_pixel_matrix = panel_matrix @ pixel_matrix
+
+        panel['matrix'] = serialise_matrix(panel_pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
+
+        panel_pixel_vertices = [
+            inv_pixel_matrix @ vertex for vertex in panel_vertices
+        ]
+        panel['vertices'] = serialise_matrix(panel_pixel_vertices)
 
         panels.append(panel)
 

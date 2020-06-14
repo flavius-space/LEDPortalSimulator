@@ -59,7 +59,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -89,7 +89,7 @@ class TestLightLayout(unittest.TestCase):
         expected_lights = [(0, 0), (1, 0), (2, 0), (2, 1), (1, 1), (1, 2), (2, 2), (2, 3), (2, 4)]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -146,7 +146,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -195,7 +195,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -232,7 +232,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -278,7 +278,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -330,7 +330,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        matrix, lights = generate_lights_for_convex_polygon(
+        _, matrix, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,

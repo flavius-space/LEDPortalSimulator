@@ -12,6 +12,8 @@ import logging
 import os
 
 ORIGIN_3D = Vector((0, 0, 0))
+X_AXIS_3D = Vector((1, 0, 0))
+Y_AXIS_3D = Vector((0, 1, 0))
 Z_AXIS_3D = Vector((0, 0, 1))
 X_AXIS_2D = Vector((1, 0))
 TRI_VERTS = 3
