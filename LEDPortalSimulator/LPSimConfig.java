@@ -10,8 +10,8 @@ import processing.core.PVector;
 public class LPSimConfig {
 	private static final Logger logger = Logger.getLogger(LPMeshable.class.getName());
     public List<LPPanel> panels = new ArrayList<LPPanel>();
-    public List<LPStructure> structures = new ArrayList<LPStructure>();;
-    public List<LPStructure> debugStructures = new ArrayList<LPStructure>();;
+    public List<LPStructure> structures = new ArrayList<LPStructure>();
+    public List<LPStructure> debugStructures = new ArrayList<LPStructure>();
     // public float ledSize = (float)1.0;
     public LPSimConfig () {}
     public void updateFromJSONObject(JSONObject jsonConfig) throws RuntimeException{
@@ -35,7 +35,6 @@ public class LPSimConfig {
 	}
 
 	public PVector getWorldCentroid() {
-		PVector position = new PVector(0, 0, 0);
 		List<PVector> centroids = new ArrayList<PVector>();
 		for(LPPanel panel : this.panels) {
 			centroids.add(panel.getWorldCentroid());
@@ -43,10 +42,12 @@ public class LPSimConfig {
 		return LPMeshable.getCentroid(centroids);
 	}
 
-	public PMatrix3D getWorldCentroidMatrix() {
-		PVector centroid = this.getWorldCentroid();
-		PMatrix3D matrix = new PMatrix3D();
-		matrix.translate(centroid.x, centroid.y, centroid.z);
-		return matrix;
+	public PVector getWorldNormal() {
+		List<PVector> normals = new ArrayList<PVector>();
+		for(LPPanel panel : this.panels) {
+			normals.add(panel.getWorldNormal());
+		}
+		return LPMeshable.getCentroid(normals);
+	}
 	}
 }

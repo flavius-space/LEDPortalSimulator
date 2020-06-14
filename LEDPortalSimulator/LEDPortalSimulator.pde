@@ -38,19 +38,23 @@ void setup() {
 
 	int vertexIndex;
 
-	List<PVector> panelWorldCentroids = new ArrayList<PVector>();
-	List<PVector> panelWorldNormals = new ArrayList<PVector>();
+	List<PVector> modelWorldPoints = new ArrayList<PVector>();
 	for(LPPanel panel : config.panels) {
-		List<PVector> worldVertices = panel.getWorldVertices();
-		LPStructure panelStruct = (new LPStructure())
-			.updateFromPlaneDebugPoints(worldVertices);
-		panelWorldCentroids.add(LPMeshable.getCentroid(worldVertices));
-		panelWorldNormals.add(LPMeshable.getNormal(worldVertices));
+		List<PVector> worldPoints = panel.getWorldVertices();
+		PVector centroid = panel.getWorldCentroid();
+		modelWorldPoints.add(centroid);
+		worldPoints.add(0, centroid);
+		PVector normal = panel.getWorldNormal();
+		worldPoints.add(PVector.add(centroid, normal));
+		LPStructure panelStruct = (new LPStructure()).updateFromPlaneDebugPoints(worldPoints);
 		config.debugStructures.add(panelStruct);
 	}
 
-	LPStructure modelStruct = (new LPStructure())
-		.updateFromPlaneDebugPoints(panelWorldCentroids);
+	PVector modelWorldCentroid = config.getWorldCentroid();
+	modelWorldPoints.add(0, modelWorldCentroid);
+	PVector modelWorldNormal = config.getWorldNormal();
+	modelWorldPoints.add(PVector.add(modelWorldCentroid, modelWorldNormal));
+	LPStructure modelStruct = (new LPStructure()).updateFromPlaneDebugPoints(modelWorldPoints);
 	config.debugStructures.add(modelStruct);
 
 

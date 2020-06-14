@@ -17,15 +17,10 @@ public class LPStructure extends LPMeshable {
 	}
 
     public LPStructure updateFromPlaneDebugPoints(List<PVector> points) {
-		PVector centroid = getCentroid(points);
-		this.vertices.add(centroid);
 		for(PVector point: points) {
 			this.vertices.add(point);
 			this.edges.add(new int[]{0, this.vertices.size() - 1});
 		}
-		PVector normal = getNormal(points);
-		this.vertices.add(PVector.add(centroid, normal));
-		this.edges.add(new int[]{0, this.vertices.size() - 1});
         return this;
 	}
 }

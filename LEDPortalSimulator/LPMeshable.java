@@ -102,7 +102,7 @@ public abstract class LPMeshable {
 	}
 
 	public static PVector getCentroid(List<PVector> points) {
-		PVector result = new PVector(0, 0, 0);
+		PVector result = new PVector();
 		for(PVector point : points) {
 			result = result.add(point);
 		}
