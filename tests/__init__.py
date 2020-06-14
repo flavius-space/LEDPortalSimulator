@@ -2,6 +2,7 @@ import os
 import unittest
 import traceback
 import pdb
+import pytest
 
 TESTS_DIR = os.path.dirname(__file__)
 REPO_DIR = os.path.dirname(TESTS_DIR)
@@ -20,11 +21,13 @@ def debugTestRunner(post_mortem=None, *args, **kwargs):
             traceback.print_exception(*err)
             post_mortem(err[2])
             super(DebugTestResult, self).addError(test, err)
+            pytest.exit('exit after post mortem')
 
         def addFailure(self, test, err):
             traceback.print_exception(*err)
             post_mortem(err[2])
             super(DebugTestResult, self).addFailure(test, err)
+            pytest.exit('exit after post mortem')
 
     kwargs['resultclass'] = DebugTestResult
     return unittest.TextTestRunner(*args, **kwargs)
