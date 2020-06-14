@@ -9,13 +9,11 @@ import processing.core.PVector;
 
 public class LPSimConfig {
 	private static final Logger logger = Logger.getLogger(LPMeshable.class.getName());
-    public List<LPPanel> panels;
-    public List<LPStructure> structures;
+    public List<LPPanel> panels = new ArrayList<LPPanel>();
+    public List<LPStructure> structures = new ArrayList<LPStructure>();;
+    public List<LPStructure> debugStructures = new ArrayList<LPStructure>();;
     // public float ledSize = (float)1.0;
-    public LPSimConfig () {
-        panels = new ArrayList<LPPanel>();
-        structures = new ArrayList<LPStructure>();
-    }
+    public LPSimConfig () {}
     public void updateFromJSONObject(JSONObject jsonConfig) throws RuntimeException{
         // if(jsonConfig.hasKey("ledSize")) {
         //     this.ledSize = jsonConfig.getFloat("ledSize");
@@ -35,26 +33,22 @@ public class LPSimConfig {
             }
         }
 	}
-	public PMatrix3D getPanelMatrixAverage() {
+	public PVector getWorldCentroid() {
 		PVector position = new PVector(0, 0, 0);
 		// PVector normal = new PVector(0, 0, 1);
-		PMatrix3D matrix = new PMatrix3D();
-		int nVertices = 0;
+
+
+		List<PVector> centroids = new ArrayList<PVector>();
 		for(LPPanel panel : this.panels) {
-			for(PVector vertex: panel.getWorldVertices()) {
-				logger.info(String.format(
-					"position: %s, vertex: %s", LPMeshable.formatPVector(position),
-					LPMeshable.formatPVector(vertex)));
-				// position = position.mult((float)nVertices/(nVertices + 1));
-				// vertex = vertex.mult((float)1/(nVertices + 1));
-				// logger.info(String.format("scaled position: %s, vertex: %s", position, vertex));
-				position = position.add(vertex);
-				nVertices++;
-			}
+			centroids.add(panel.getWorldCentroid());
 		}
-		position.div(nVertices);
-		logger.info(String.format("final position %s", LPMeshable.formatPVector(position)));
-		matrix.translate(position.x, position.y, position.z);
+		return LPMeshable.getCentroid(centroids);
+	}
+
+	public PMatrix3D getWorldCentroidMatrix() {
+		PVector centroid = this.getWorldCentroid();
+		PMatrix3D matrix = new PMatrix3D();
+		matrix.translate(centroid.x, centroid.y, centroid.z);
 		return matrix;
 	}
 }

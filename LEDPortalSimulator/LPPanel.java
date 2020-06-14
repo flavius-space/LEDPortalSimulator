@@ -22,11 +22,12 @@ public class LPPanel extends LPMeshable {
 		super.updateFromJSONObject(jsonConfig);
         if(jsonConfig.hasKey("pixels")) {
 			JSONArray ledList = jsonConfig.getJSONArray("pixels");
-			logger.info(String.format("has %d pixels", ledList.size()));
             for(int i = 0; i < ledList.size(); i++) {
 				JSONArray led = ledList.getJSONArray(i);
                 this.leds.add(new PVector(led.getInt(0), led.getInt(1), 0));
             }
+			logger.info(String.format(
+				"has %d pixels: %s", this.leds.size(), formatPVectorList(this.leds)));
 		}
         return this;
     }
@@ -40,12 +41,13 @@ public class LPPanel extends LPMeshable {
         return out;
 	}
 
-	public List<PVector> getWorldLEDs() {
-		List<PVector> worldLEDs = new ArrayList<PVector>();
+	public List<PVector> getWorldPixels() {
+		List<PVector> worldPixels = new ArrayList<PVector>();
 		for(PVector led : this.leds) {
-			worldLEDs.add(getWorldCoordinate(this.matrix, led));
+			worldPixels.add(getPixelCoordinate(getWorldCoordinate(this.matrix, led)));
 		}
-		return worldLEDs;
+		logger.info(String.format("world pixels: %s", formatPVectorList(worldPixels)));
+		return worldPixels;
 	}
 
 

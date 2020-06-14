@@ -21,6 +21,18 @@ public abstract class LPMeshable {
 		faces = new ArrayList<int[]>();
 	}
 
+	/**
+	 * For some inexplicable reason, the coordinate system for processing UI components as
+	 * the camera is oriented so that "up" is the Y-Axis, where every other animation software in
+	 * the fucking world uses the Z-axis for up.
+	 */
+	public static final PMatrix3D worldToUI = new PMatrix3D(
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		1, 0, 0, 0,
+		0, 0, 0, 1
+	);
+
 	public static String floatFmt = "%7.3f";
 
 	public static String formatPVector(PVector vector) {
@@ -32,8 +44,19 @@ public abstract class LPMeshable {
 
 	public static String formatPVectorList(List<PVector> vectors) {
 		String output = "[";
-		for (PVector vector : vectors) {
-			output += "\n\t" + formatPVector(vector);
+		int size = vectors.size();
+		if (size > 8) {
+			for (PVector vector : vectors.subList(0, 3)) {
+				output += "\n\t" + formatPVector(vector);
+			}
+			output += "\n\t" + "...";
+			for (PVector vector : vectors.subList(size - 4, size - 1)) {
+				output += "\n\t" + formatPVector(vector);
+			}
+		} else {
+			for (PVector vector : vectors) {
+				output += "\n\t" + formatPVector(vector);
+			}
 		}
 		return output + "\n]";
 	}
@@ -74,6 +97,20 @@ public abstract class LPMeshable {
 		return worldVertices;
 	}
 
+	public static PVector getCentroid(List<PVector> points) {
+		PVector result = new PVector(0, 0, 0);
+		for(PVector point : points) {
+			result = result.add(point);
+		}
+		result.div(points.size());
+		logger.info(String.format("centroid %s", LPMeshable.formatPVector(result)));
+		return result;
+	}
+
+	public PVector getWorldCentroid() {
+		return getCentroid(this.getWorldVertices());
+	}
+
 	public List<PVector[]> getWorldEdges() {
 		List<PVector[]> worldEdges = new ArrayList<PVector[]>();
 		for(int[] edge : this.edges) {
@@ -84,9 +121,24 @@ public abstract class LPMeshable {
 		return worldEdges;
 	}
 
+	public static PVector coordinateTransform(PMatrix3D matrix, PVector local) {
+		PVector world = local;
+		if (matrix != null) {
+			world = matrix.mult(local, null);
+		}
+		return world;
+	}
+
+	public static PVector getUICoordinate(PVector world) {
+		return coordinateTransform(worldToUI, world);
+	}
+
+	public static PVector getPixelCoordinate(PVector world) {
+		return coordinateTransform(worldToUI, world);
+	}
+
 	public static PVector getWorldCoordinate(PMatrix3D matrix, PVector local) {
-		PVector world = matrix.mult(local, null);
-		return new PVector(world.x, world.z, world.y);
+		return coordinateTransform(matrix, local);
 	}
 
     public LPMeshable updateFromJSONObject(JSONObject jsonConfig) {
@@ -99,11 +151,12 @@ public abstract class LPMeshable {
 		}
 		if(jsonConfig.hasKey("vertices")) {
 			JSONArray vertexList = jsonConfig.getJSONArray("vertices");
-			logger.info(String.format("has %d vertices", vertexList.size()));
             for(int i = 0; i < vertexList.size(); i++) {
 				JSONArray vertex = vertexList.getJSONArray(i);
                 this.vertices.add(new PVector(vertex.getFloat(0), vertex.getFloat(1), vertex.getFloat(2)));
-            }
+			}
+			logger.info(String.format(
+				"has %d vertices: %s", this.vertices.size(), formatPVectorList(this.vertices)));
 		}
 		if(jsonConfig.hasKey("matrix")) {
 			JSONArray matrix = jsonConfig.getJSONArray("matrix");

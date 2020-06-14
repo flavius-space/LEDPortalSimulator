@@ -21,8 +21,8 @@ String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
 };
-// String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
-String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
+String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
+// String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 
 void setup() {
@@ -35,6 +35,18 @@ void setup() {
 		config.updateFromJSONObject(loadJSONObject(structure + ".json"));
 	}
 	model = modelFromPanels(config.panels);
+
+	for(LPPanel panel : config.panels) {
+		LPStructure struct = new LPStructure();
+		struct.vertices.add(panel.getWorldCentroid());
+		int vertexIndex = 1;
+		for(PVector vertex: panel.getWorldVertices()) {
+			struct.vertices.add(vertex);
+			struct.edges.add(new int[]{0, vertexIndex});
+			vertexIndex += 1;
+		}
+		config.debugStructures.add(struct);
+	}
 
 	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
 	// lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("LEFT_HANDED"));
@@ -109,7 +121,10 @@ void onUIReady(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI 
 	for(LPStructure structure: config.structures) {
 		ui.preview.addComponent(new UIWireframe(structure));
 	}
-	// ui.preview.addComponent(new UIAxes());
+	for(LPStructure debugStructure: config.debugStructures) {
+		ui.preview.addComponent(new UIDebugWireFrame(debugStructure));
+	}
+
 }
 
 void draw() {

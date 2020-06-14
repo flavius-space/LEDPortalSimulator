@@ -2,7 +2,7 @@ import java.util.List;
 
 public static class LEDPanelFixture extends LXAbstractFixture {
 	public LEDPanelFixture(LPPanel panel) {
-		for (PVector led : panel.getWorldLEDs()) {
+		for (PVector led : panel.getWorldPixels()) {
 			addPoint(new LXPoint(led.x, led.y, led.z));
 		}
 	}
