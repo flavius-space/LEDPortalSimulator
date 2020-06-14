@@ -37,7 +37,8 @@ try:
     imp.reload(common)  # dumb hacks because of blender's pycache settings
     from common import (Y_AXIS_3D, Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS,
                         ATOL, ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix,
-                        export_json, get_selected_polygons_suffix, sanitise_names, matrix_isclose)
+                        export_json, get_selected_polygons_suffix, sanitise_names, matrix_isclose,
+                        format_matrix_components)
 finally:
     sys.path = PATH
 
@@ -91,9 +92,34 @@ def orientation(*vecs):
     return orientation
 
 
+def compose_matrix_components(components):
+    logging.debug(
+        f"Matrix Components:" + ENDLTAB
+        + format_matrix_components(components))
+
+    composition = reduce(lambda m, n: n @ m, reversed([
+        component_type(*component_args)
+        for component_type, component_args in components
+    ]))
+    inv_composition = reduce(lambda m, n: n @ m, [
+        component_type(*component_args).inverted()
+        for component_type, component_args in components
+    ])
+
+    logging.debug(f"Composition / Inverse / Identity Matrix:" + ENDLTAB + ENDLTAB.join([
+        format_matrix(matrix) for matrix in [
+            composition, inv_composition, composition @ inv_composition]
+    ]))
+
+    assert matrix_isclose(composition @ inv_composition, Matrix.Identity(4), atol=ATOL)
+
+    return composition, inv_composition
+
+
 def plane_flattener(center, normal):
     """
-    Form a matrix which will transform all points on the plane onto the X-Y plane.
+    Form a matrix which will transform all points on the plane defined by `center` and `normal`
+    onto the X-Y plane.
     """
 
     cross_z = normal.cross(Z_AXIS_3D)
@@ -535,29 +561,8 @@ def generate_lights_for_convex_polygon(
         (Matrix.Shear, ['XZ', 4, (gradient_cos(grid_gradient), 0)]),
         (Matrix.Scale, [spacing, 4]),
     ]
-    logging.debug(f"Transformation Matrix Components:" + ENDLTAB + ENDLTAB.join([
-        ENDLTAB.join([
-            f"{component_type.__name__}(*{component_args})",
-            format_matrix(component_type(*component_args))
-        ])
-        for component_type, component_args in transformation_components
-    ]))
 
-    transformation = reduce(lambda m, n: n @ m, reversed([
-        component_type(*component_args)
-        for component_type, component_args in transformation_components
-    ]))
-    inv_transformation = reduce(lambda m, n: n @ m, [
-        component_type(*component_args).inverted()
-        for component_type, component_args in transformation_components
-    ])
-
-    logging.debug(f"Transformation / Inverse / Identity Matrix:" + ENDLTAB + ENDLTAB.join([
-        format_matrix(matrix) for matrix in [
-            transformation, inv_transformation, transformation @ inv_transformation]
-    ]))
-
-    assert matrix_isclose(transformation @ inv_transformation, Matrix.Identity(4), atol=ATOL)
+    transformation, inv_transformation = compose_matrix_components(transformation_components)
 
     return inv_transformation, transformation, lights
 

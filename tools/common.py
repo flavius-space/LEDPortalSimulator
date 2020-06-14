@@ -67,6 +67,16 @@ def format_matrix(mat, name="Matrix", indent=1):
     return out.replace('\n', ('\n' + (indent * '\t')))
 
 
+def format_matrix_components(components):
+    return ENDLTAB.join([
+        ENDLTAB.join([
+            f"{component_type.__name__}(*{component_args})",
+            format_matrix(component_type(*component_args))
+        ])
+        for component_type, component_args in components
+    ])
+
+
 def setup_logger(log_file=None, stream_log_level=None, file_log_level=None):
     if stream_log_level is None:
         stream_log_level = logging.INFO
