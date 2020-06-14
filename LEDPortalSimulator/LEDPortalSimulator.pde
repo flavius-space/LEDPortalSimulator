@@ -36,17 +36,43 @@ void setup() {
 	}
 	model = modelFromPanels(config.panels);
 
+	int vertexIndex;
+
+	List<PVector> panelWorldCentroids = new ArrayList<PVector>();
+	List<PVector> panelWorldNormals = new ArrayList<PVector>();
 	for(LPPanel panel : config.panels) {
-		LPStructure struct = new LPStructure();
-		struct.vertices.add(panel.getWorldCentroid());
-		int vertexIndex = 1;
-		for(PVector vertex: panel.getWorldVertices()) {
-			struct.vertices.add(vertex);
-			struct.edges.add(new int[]{0, vertexIndex});
+		LPStructure panelStruct = new LPStructure();
+		List<PVector> worldVertices = panel.getWorldVertices();
+		PVector worldCentroid = LPMeshable.getCentroid(worldVertices);
+		panelWorldCentroids.add(worldCentroid);
+		panelStruct.vertices.add(worldCentroid);
+		vertexIndex = 1;
+		for(PVector vertex: worldVertices) {
+			panelStruct.vertices.add(vertex);
+			panelStruct.edges.add(new int[]{0, vertexIndex});
 			vertexIndex += 1;
 		}
-		config.debugStructures.add(struct);
+		PVector worldNormal = LPMeshable.getNormal(worldVertices);
+		panelWorldNormals.add(worldNormal);
+		panelStruct.vertices.add(PVector.add(worldCentroid, worldNormal));
+		panelStruct.edges.add(new int[]{0, vertexIndex});
+		config.debugStructures.add(panelStruct);
 	}
+
+	vertexIndex = 1;
+	LPStructure modelStruct = new LPStructure();
+	PVector modelWorldCentroid = LPMeshable.getCentroid(panelWorldCentroids);
+	modelStruct.vertices.add(modelWorldCentroid);
+	for(PVector panelWorldCentroid: panelWorldCentroids) {
+		modelStruct.vertices.add(panelWorldCentroid);
+		modelStruct.edges.add(new int[]{0, vertexIndex});
+		vertexIndex += 1;
+	}
+	PVector modelWorldNormal = LPMeshable.getCentroid(panelWorldCentroids);
+	modelStruct.vertices.add(PVector.add(modelWorldCentroid, modelWorldNormal));
+	modelStruct.edges.add(new int[]{0, vertexIndex});
+	config.debugStructures.add(modelStruct);
+
 
 	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
 	// lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("LEFT_HANDED"));

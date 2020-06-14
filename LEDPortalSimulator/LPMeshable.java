@@ -107,8 +107,27 @@ public abstract class LPMeshable {
 		return result;
 	}
 
+	/**
+	 * Assumptions:
+	 *   - points are complanar, so only the first 3 points need to be looked at.
+	 * 	 - points are given in counter-clockwise order, from the direction opposing the normal.
+	 * @param points
+	 * @return
+	 */
+	public static PVector getNormal(List<PVector> points) {
+		PVector anticlockwise = PVector.sub(points.get(2), points.get(0));
+		PVector clockwise = PVector.sub(points.get(1), points.get(0));
+		PVector result = clockwise.cross(anticlockwise);
+		logger.info(String.format("normal %s", LPMeshable.formatPVector(result)));
+		return result;
+	}
+
 	public PVector getWorldCentroid() {
 		return getCentroid(this.getWorldVertices());
+	}
+
+	public PVector getWorldNormal() {
+		return getNormal(this.getWorldVertices());
 	}
 
 	public List<PVector[]> getWorldEdges() {
