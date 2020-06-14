@@ -11,12 +11,17 @@
  * PURPOSE, WITH RESPECT TO THE SOFTWARE.
  */
 
+import processing.video.*;
 import java.util.logging.Logger;
+
 heronarts.lx.studio.LXStudio lx;
 
 private static final Logger logger = Logger.getLogger(PApplet.class.getName());
+
 LXModel model;
 LPSimConfig config;
+Movie movie;
+PImage movieFrame;
 String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
@@ -24,6 +29,7 @@ String[] structures =  {
 String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
+String activeMovie = null;
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance
@@ -81,6 +87,16 @@ void debugSetup() {
 
 }
 
+void movieSetup() {
+	if (activeMovie != null) {
+		movie = new Movie((PApplet)this, activeMovie);
+		movie.loop();
+		while(!movie.available());
+		movie.read();
+		movieFrame = createImage(movie.width, movie.height, RGB);
+		logger.fine(String.format("Movie: %d x %d", movie.width, movie.height));
+	}
+}
 
 // final String OPC_IP = "192.168.1.20";
 // final String OPC_IP = "127.0.0.1";
@@ -152,9 +168,40 @@ void onUIReady(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI 
 		ui.preview.addComponent(new UIDebugWireFrame(debugStructure));
 	}
 
+	if (activeMovie != null) {
+		onUIReadyMovie(lx, ui);
+	}
+
+	ui.preview.addComponent(new UIAxes());
+}
+
+void onUIReadyMovie(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
+	if(movie == null) movieSetup();
+	PMatrix3D unFlattener = config.getWorldUnFlattener();
+	List<float[]> vertexUVPairs = new ArrayList<float[]>();
+	vertexUVPairs.add(new float[]{0, 0, 0, 0, movie.height});
+	vertexUVPairs.add(new float[]{1, 0, 0, movie.width, movie.height});
+	vertexUVPairs.add(new float[]{1, 1, 0, movie.width, 0});
+	vertexUVPairs.add(new float[]{0, 1, 0, 0, 0});
+	for(float[] vertexUVPair : vertexUVPairs) {
+		PVector uvPosition = new PVector(vertexUVPair[0], vertexUVPair[1], vertexUVPair[2]);
+		PVector unflattened = LPMeshable.getWorldCoordinate(unFlattener, uvPosition);
+		vertexUVPair[0] = unflattened.x;
+		vertexUVPair[1] = unflattened.y;
+		vertexUVPair[2] = unflattened.z;
+		logger.info(String.format(
+			"unflattened uv position %s to %s", LPMeshable.formatPVector(uvPosition),
+			LPMeshable.formatPVector(unflattened)));
+	}
+	ui.preview.addComponent(new UIMovie(vertexUVPairs));
 }
 
 void draw() {
+}
+
+void movieEvent(Movie m) {
+	m.read();
+	if(movieFrame != null) movieFrame.copy(m, 0, 0, m.width, m.height, 0, 0, m.width, m.height);
 }
 
 // Configuration flags
