@@ -33,11 +33,9 @@ public class LPSimConfig {
             }
         }
 	}
+
 	public PVector getWorldCentroid() {
 		PVector position = new PVector(0, 0, 0);
-		// PVector normal = new PVector(0, 0, 1);
-
-
 		List<PVector> centroids = new ArrayList<PVector>();
 		for(LPPanel panel : this.panels) {
 			centroids.add(panel.getWorldCentroid());
