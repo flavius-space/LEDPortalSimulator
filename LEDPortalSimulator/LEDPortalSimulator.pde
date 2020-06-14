@@ -42,19 +42,20 @@ void setup() {
 	lx.ui.setResizable(RESIZABLE);
 }
 
-final String OPC_IP = "192.168.1.20";
+
+// final String OPC_IP = "192.168.1.20";
 // final String OPC_IP = "127.0.0.1";
-final int OPC_PORT = 42069;
-final byte OPC_CHANNEL = 0;
+// final int OPC_PORT = 42069;
+// final byte OPC_CHANNEL = 0;
 final String SERIAL_PORT = "/dev/tty.usbserial-AD025M69";
-final int APA102_CLOCK_CHANNEL = 7;
-final int APA102_FREQ = 800000;
+// final int APA102_CLOCK_CHANNEL = 7;
+// final int APA102_FREQ = 800000;
 
 void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom components or output drivers here
 	try {
 		int pointIndex = 0;
-		int nPoints = 1;
+		int nPoints = 300;
 		int nChannels = 1;
 		PixelBlazeExpanderOutput output = new PixelBlazeExpanderParentOutput(lx, this, SERIAL_PORT);
 		for (int channelNumber = 0; channelNumber < nChannels; channelNumber++) {
@@ -63,12 +64,12 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 				points[i] = pointIndex;
 				if (pointIndex < lx.total - 1) pointIndex++;
 			}
-			// PixelBlazeExpanderOutput child = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
-			PixelBlazeExpanderOutput child = new PixelBlazeExpanderAPA102DataOutput(lx, this, SERIAL_PORT, channelNumber, APA102_FREQ, points);
+			PixelBlazeExpanderOutput child = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
+			// PixelBlazeExpanderOutput child = new PixelBlazeExpanderAPA102DataOutput(lx, this, SERIAL_PORT, channelNumber, APA102_FREQ, points);
 			output.addChild(child);
 		}
-		PixelBlazeExpanderOutput clock = new PixelBlazeExpanderAPA102ClockOutput(lx, this, SERIAL_PORT, APA102_CLOCK_CHANNEL, APA102_FREQ);
-		output.addChild(clock);
+		// PixelBlazeExpanderOutput clock = new PixelBlazeExpanderAPA102ClockOutput(lx, this, SERIAL_PORT, APA102_CLOCK_CHANNEL, APA102_FREQ);
+		// output.addChild(clock);
 		PixelBlazeExpanderOutput sendAll = new PixelBlazeExpanderSendAllOutput(lx, this, SERIAL_PORT);
 		output.addChild(sendAll);
 		// TCP:
