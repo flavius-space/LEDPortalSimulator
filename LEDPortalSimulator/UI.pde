@@ -41,18 +41,18 @@ public class UIDebugWireFrame extends UIWireframe {
 public class UIAxes extends UI3dComponent {
 	public UIAxes() {
 		super();
-		this.addChild(new BillboardText("X", new PVector(1, 0, 0), 1, #ff0000));
-		this.addChild(new BillboardText("Y", new PVector(0, 1, 0), 1, #00ff00));
-		this.addChild(new BillboardText("Z", new PVector(0, 0, 1), 1, #0000ff));
+		this.addChild(new BillboardText("X", LPMeshable.xAxis, 1, #ff0000));
+		this.addChild(new BillboardText("Y", LPMeshable.yAxis, 1, #00ff00));
+		this.addChild(new BillboardText("Z", LPMeshable.zAxis, 1, #0000ff));
 	}
     @Override
     protected void onDraw(UI ui, PGraphics pg){
 		pg.pushStyle();
 		// pg.strokeWeight(5);
 
-		PVector uiX = LPMeshable.getUICoordinate(new PVector(1, 0, 0));
-		PVector uiY = LPMeshable.getUICoordinate(new PVector(0, 1, 0));
-		PVector uiZ = LPMeshable.getUICoordinate(new PVector(0, 0, 1));
+		PVector uiX = LPMeshable.getUICoordinate(LPMeshable.xAxis);
+		PVector uiY = LPMeshable.getUICoordinate(LPMeshable.yAxis);
+		PVector uiZ = LPMeshable.getUICoordinate(LPMeshable.zAxis);
 		pg.stroke(#ff0000);
 		pg.line(0, 0, 0, uiX.x, uiX.y, uiX.z);
 		pg.stroke(#00ff00);

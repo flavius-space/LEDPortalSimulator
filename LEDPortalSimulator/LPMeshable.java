@@ -33,6 +33,10 @@ public abstract class LPMeshable {
 		0, 0, 0, 1
 	);
 
+	public static final PVector xAxis = new PVector(1, 0, 0);
+	public static final PVector yAxis = new PVector(0, 1, 0);
+	public static final PVector zAxis = new PVector(0, 0, 1);
+
 	public static String floatFmt = "%7.3f";
 
 	public static String formatPVector(PVector vector) {
