@@ -49,5 +49,18 @@ public class LPSimConfig {
 		}
 		return LPMeshable.getCentroid(normals);
 	}
+
+	public PMatrix3D getWorldFlattener() {
+		PVector centroid = getWorldCentroid();
+		PVector normal = getWorldNormal();
+		PMatrix3D flattener = LPMeshable.getFlattener(centroid, normal);
+		return flattener;
+	}
+
+	public PMatrix3D getWorldUnFlattener() {
+		PVector centroid = getWorldCentroid();
+		PVector normal = getWorldNormal();
+		PMatrix3D flattener = LPMeshable.getUnFlattener(centroid, normal);
+		return flattener;
 	}
 }

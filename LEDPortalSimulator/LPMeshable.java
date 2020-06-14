@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -124,6 +125,63 @@ public abstract class LPMeshable {
 		PVector result = clockwise.cross(anticlockwise);
 		logger.info(String.format("normal %s", LPMeshable.formatPVector(result)));
 		return result;
+	}
+
+	/**
+	 * Form a matrix which will transform all points on the plane defined by `center` and `normal`
+	 * onto the X-Y plane.
+	 * @param center
+	 * @param normal
+	 * @return
+	 */
+	private static List<PMatrix3D> getFlattenerComponents(PVector center, PVector normal) {
+		PVector crossZ = normal.cross(zAxis);
+		float zenith = PVector.angleBetween(normal, zAxis);
+		float azimuth = PVector.angleBetween(crossZ, xAxis);
+		logger.info(String.format("zenith: %7.3f radians, azimuth: %7.3f radians", zenith, azimuth));
+		List<PMatrix3D> result = new ArrayList<PMatrix3D>();
+		PMatrix3D azimuthMatrix = new PMatrix3D();
+		azimuthMatrix.rotate(azimuth, zAxis.x, zAxis.y, zAxis.z);
+		result.add(azimuthMatrix);
+		logger.info(String.format("azimuthMatrix: %s", formatPMatrix3D(azimuthMatrix)));
+		PMatrix3D zenithMatrix = new PMatrix3D();
+		zenithMatrix.rotate(zenith, crossZ.x, crossZ.y, crossZ.z);
+		result.add(zenithMatrix);
+		logger.info(String.format("zenithMatrix: %s", formatPMatrix3D(zenithMatrix)));
+		PMatrix3D translationMatrix = new PMatrix3D();
+		translationMatrix.translate(-center.x, -center.y, -center.z);
+		result.add(translationMatrix);
+		logger.info(String.format("translationMatrix: %s", formatPMatrix3D(translationMatrix)));
+		return result;
+	}
+
+	public static PMatrix3D composeMatrices(List<PMatrix3D> matrices) {
+		PMatrix3D result = new PMatrix3D();
+		for(PMatrix3D matrix : matrices) {
+			result.apply(matrix);
+		}
+		logger.info(String.format("result: %s", formatPMatrix3D(result)));
+		return result;
+	}
+
+	public static PMatrix3D inverseComposeMatrixArray(List<PMatrix3D> matrices) {
+		PMatrix3D result = new PMatrix3D();
+		Collections.reverse(matrices);
+		for(PMatrix3D matrix : matrices) {
+			Boolean success = matrix.invert();
+			logger.info(String.format("applying: %s, success %b", formatPMatrix3D(matrix), success));
+			result.apply(matrix);
+		}
+		logger.info(String.format("result: %s", formatPMatrix3D(result)));
+		return result;
+	}
+
+	public static PMatrix3D getFlattener(PVector center, PVector normal) {
+		return composeMatrices(getFlattenerComponents(center, normal));
+	}
+
+	public static PMatrix3D getUnFlattener(PVector center, PVector normal) {
+		return inverseComposeMatrixArray(getFlattenerComponents(center, normal));
 	}
 
 	public PVector getWorldCentroid() {

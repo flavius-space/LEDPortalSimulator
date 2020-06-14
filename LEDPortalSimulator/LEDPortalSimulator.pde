@@ -36,8 +36,17 @@ void setup() {
 	}
 	model = modelFromPanels(config.panels);
 
-	int vertexIndex;
+	debugSetup();
 
+	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
+
+	if(movie == null) movieSetup();
+
+	lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("RIGHT_HANDED"));
+	lx.ui.setResizable(RESIZABLE);
+}
+
+void debugSetup() {
 	List<PVector> modelWorldPoints = new ArrayList<PVector>();
 	for(LPPanel panel : config.panels) {
 		List<PVector> worldPoints = panel.getWorldVertices();
@@ -46,7 +55,7 @@ void setup() {
 		worldPoints.add(0, centroid);
 		PVector normal = panel.getWorldNormal();
 		worldPoints.add(PVector.add(centroid, normal));
-		LPStructure panelStruct = (new LPStructure()).updateFromPlaneDebugPoints(worldPoints);
+		LPStructure panelStruct = new LPStructure().updateFromPlaneDebugPoints(worldPoints);
 		config.debugStructures.add(panelStruct);
 	}
 
@@ -54,14 +63,22 @@ void setup() {
 	modelWorldPoints.add(0, modelWorldCentroid);
 	PVector modelWorldNormal = config.getWorldNormal();
 	modelWorldPoints.add(PVector.add(modelWorldCentroid, modelWorldNormal));
-	LPStructure modelStruct = (new LPStructure()).updateFromPlaneDebugPoints(modelWorldPoints);
+	LPStructure modelStruct = new LPStructure().updateFromPlaneDebugPoints(modelWorldPoints);
 	config.debugStructures.add(modelStruct);
 
+	PMatrix3D flattener = config.getWorldFlattener();
 
-	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
-	// lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("LEFT_HANDED"));
-	lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("RIGHT_HANDED"));
-	lx.ui.setResizable(RESIZABLE);
+	List<PVector> flattenedModelWorldPoints = new ArrayList<PVector>();
+	for(PVector point: modelWorldPoints) {
+		flattenedModelWorldPoints.add(LPMeshable.getWorldCoordinate(flattener, point));
+	}
+
+	LPStructure flattenedModelStruct = new LPStructure()
+		.updateFromPlaneDebugPoints(flattenedModelWorldPoints);
+	config.debugStructures.add(flattenedModelStruct);
+
+	logger.info(String.format("flattenedModelWorldPoints: %s", LPMeshable.formatPVectorList(flattenedModelWorldPoints)));
+
 }
 
 
