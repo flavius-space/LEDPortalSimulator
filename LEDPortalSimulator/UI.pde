@@ -20,8 +20,8 @@ public class UIWireframe extends UI3dComponent {
 		pg.strokeWeight(5);
 		pg.stroke(this.colour, alpha);
 		for (PVector[] edge: this.edges) {
-			PVector start = LPMeshable.getUICoordinate(edge[0]);
-			PVector end = LPMeshable.getUICoordinate(edge[1]);
+			PVector start = LPMeshable.worldUITransform(edge[0]);
+			PVector end = LPMeshable.worldUITransform(edge[1]);
 			pg.line(start.x, start.y, start.z, end.x, end.y, end.z);
 		}
 		pg.popStyle();
@@ -50,9 +50,9 @@ public class UIAxes extends UI3dComponent {
 		pg.pushStyle();
 		// pg.strokeWeight(5);
 
-		PVector uiX = LPMeshable.getUICoordinate(LPMeshable.xAxis);
-		PVector uiY = LPMeshable.getUICoordinate(LPMeshable.yAxis);
-		PVector uiZ = LPMeshable.getUICoordinate(LPMeshable.zAxis);
+		PVector uiX = LPMeshable.worldUITransform(LPMeshable.xAxis);
+		PVector uiY = LPMeshable.worldUITransform(LPMeshable.yAxis);
+		PVector uiZ = LPMeshable.worldUITransform(LPMeshable.zAxis);
 		pg.stroke(#ff0000);
 		pg.line(0, 0, 0, uiX.x, uiX.y, uiX.z);
 		pg.stroke(#00ff00);
@@ -77,7 +77,7 @@ public class BillboardText extends UI3dComponent {
 	}
     @Override
     void onDraw(UI ui, PGraphics pg){
-		PVector uiPosition = LPMeshable.getUICoordinate(this.position);
+		PVector uiPosition = LPMeshable.worldUITransform(this.position);
 		pg.pushStyle();
 		pg.textMode(SHAPE);
 		pg.fill(this.c);
@@ -102,7 +102,7 @@ public class UIMovie extends UI3dComponent {
 		int i = 0;
 
 		for(float[] vertexUVPair : this.vertexUVPairs) {
-			PVector uiPosition = LPMeshable.getUICoordinate(new PVector(
+			PVector uiPosition = LPMeshable.worldUITransform(new PVector(
 				vertexUVPair[0], vertexUVPair[1], vertexUVPair[2]));
 			pg.vertex(uiPosition.x, uiPosition.y, uiPosition.z, vertexUVPair[3], vertexUVPair[4]);
 		}

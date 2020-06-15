@@ -16,11 +16,6 @@ public abstract class LPMeshable {
 	public List<int[]> faces;
 	public PMatrix3D matrix;
 	public String name;
-	public LPMeshable() {
-		vertices = new ArrayList<PVector>();
-		edges = new ArrayList<int[]>();
-		faces = new ArrayList<int[]>();
-	}
 
 	/**
 	 * For some inexplicable reason, the coordinate system for processing UI components as
@@ -34,11 +29,24 @@ public abstract class LPMeshable {
 		0, 0, 0, 1
 	);
 
+	public static PMatrix3D pixelToWorld = new PMatrix3D(
+		0, 0, 1, 0,
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 0, 1
+	);
+
 	public static final PVector xAxis = new PVector(1, 0, 0);
 	public static final PVector yAxis = new PVector(0, 1, 0);
 	public static final PVector zAxis = new PVector(0, 0, 1);
 
 	public static String floatFmt = "%7.3f";
+
+	public LPMeshable() {
+		vertices = new ArrayList<PVector>();
+		edges = new ArrayList<int[]>();
+		faces = new ArrayList<int[]>();
+	}
 
 	public static String formatPVector(PVector vector) {
 		return String.format(
@@ -138,20 +146,20 @@ public abstract class LPMeshable {
 		PVector crossZ = normal.cross(zAxis);
 		float zenith = PVector.angleBetween(normal, zAxis);
 		float azimuth = PVector.angleBetween(crossZ, xAxis);
-		logger.info(String.format("zenith: %7.3f radians, azimuth: %7.3f radians", zenith, azimuth));
+		logger.fine(String.format("zenith: %7.3f radians, azimuth: %7.3f radians", zenith, azimuth));
 		List<PMatrix3D> result = new ArrayList<PMatrix3D>();
 		PMatrix3D azimuthMatrix = new PMatrix3D();
-		azimuthMatrix.rotate(azimuth, zAxis.x, zAxis.y, zAxis.z);
+		azimuthMatrix.rotate(-azimuth, zAxis.x, zAxis.y, zAxis.z);
 		result.add(azimuthMatrix);
-		logger.info(String.format("azimuthMatrix: %s", formatPMatrix3D(azimuthMatrix)));
+		logger.fine(String.format("azimuthMatrix: %s", formatPMatrix3D(azimuthMatrix)));
 		PMatrix3D zenithMatrix = new PMatrix3D();
 		zenithMatrix.rotate(zenith, crossZ.x, crossZ.y, crossZ.z);
 		result.add(zenithMatrix);
-		logger.info(String.format("zenithMatrix: %s", formatPMatrix3D(zenithMatrix)));
+		logger.fine(String.format("zenithMatrix: %s", formatPMatrix3D(zenithMatrix)));
 		PMatrix3D translationMatrix = new PMatrix3D();
 		translationMatrix.translate(-center.x, -center.y, -center.z);
 		result.add(translationMatrix);
-		logger.info(String.format("translationMatrix: %s", formatPMatrix3D(translationMatrix)));
+		logger.fine(String.format("translationMatrix: %s", formatPMatrix3D(translationMatrix)));
 		return result;
 	}
 
@@ -160,7 +168,7 @@ public abstract class LPMeshable {
 		for(PMatrix3D matrix : matrices) {
 			result.apply(matrix);
 		}
-		logger.info(String.format("result: %s", formatPMatrix3D(result)));
+		logger.fine(String.format("result: %s", formatPMatrix3D(result)));
 		return result;
 	}
 
@@ -169,10 +177,10 @@ public abstract class LPMeshable {
 		Collections.reverse(matrices);
 		for(PMatrix3D matrix : matrices) {
 			Boolean success = matrix.invert();
-			logger.info(String.format("applying: %s, success %b", formatPMatrix3D(matrix), success));
+			logger.fine(String.format("applying: %s, success %b", formatPMatrix3D(matrix), success));
 			result.apply(matrix);
 		}
-		logger.info(String.format("result: %s", formatPMatrix3D(result)));
+		logger.fine(String.format("result: %s", formatPMatrix3D(result)));
 		return result;
 	}
 
@@ -180,7 +188,7 @@ public abstract class LPMeshable {
 		return composeMatrices(getFlattenerComponents(center, normal));
 	}
 
-	public static PMatrix3D getUnFlattener(PVector center, PVector normal) {
+	public static PMatrix3D getUnflattener(PVector center, PVector normal) {
 		return inverseComposeMatrixArray(getFlattenerComponents(center, normal));
 	}
 
@@ -203,18 +211,23 @@ public abstract class LPMeshable {
 	}
 
 	public static PVector coordinateTransform(PMatrix3D matrix, PVector local) {
+		PVector result = new PVector();
 		if (matrix != null) {
-			return matrix.mult(local.copy(), null);
+			return matrix.mult(local.copy(), result);
 		} else {
 			return local.copy();
 		}
 	}
 
-	public static PVector getUICoordinate(PVector world) {
+	public static PVector worldUITransform(PVector world) {
 		return coordinateTransform(worldToUI, world);
 	}
 
-	public static PVector getPixelCoordinate(PVector world) {
+	public static PVector pixelWorldTransform(PVector pixel) {
+		return coordinateTransform(pixelToWorld, pixel);
+	}
+
+	public static PVector worldPixelTransform(PVector world) {
 		return coordinateTransform(worldToUI, world);
 	}
 
@@ -305,7 +318,7 @@ public abstract class LPMeshable {
 		}
 
 		logger.info(String.format(
-			"axisBounds: %7.3f < X < %7.3f ; %7.3f < Y < %7.3f; %7.3f < Z < %7.3f",
+			"axisBounds: %7.3f <= X <= %7.3f ; %7.3f <= Y <= %7.3f; %7.3f <= Z <= %7.3f",
 			axisBounds[0][0], axisBounds[0][1],
 			axisBounds[1][0], axisBounds[1][1],
 			axisBounds[2][0], axisBounds[2][1]

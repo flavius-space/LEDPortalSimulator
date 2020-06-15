@@ -29,11 +29,13 @@ String[] structures =  {
 String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
-String activeMovie = null;
+// String activeMovie = null;
+String activeMovie = "Steamed Hams.mp4";
 
 PMatrix3D flattener;
-PMatrix3D unFlattener;
+PMatrix3D unflattener;
 float[][] flatBounds;
+float[][] modelBounds;
 
 void setup() {
 	// Processing setup, constructs the window and the LX instance
@@ -46,8 +48,9 @@ void setup() {
 	}
 	model = modelFromPanels(config.panels);
 	flattener = config.getWorldFlattener();
-	unFlattener = config.getWorldUnFlattener();
-	flatBounds = config.getModelFlattenedBounds();
+	unflattener = config.getWorldUnflattener();
+	modelBounds = config.getModelBounds();
+	flatBounds = config.getModelFlatBounds();
 
 	debugSetup();
 
@@ -85,29 +88,54 @@ void debugSetup() {
 	modelWorldPoints.add(0, modelWorldCentroid);
 	PVector modelWorldNormal = config.getWorldNormal();
 	modelWorldPoints.add(PVector.add(modelWorldCentroid, modelWorldNormal));
+
+	logger.info(String.format(
+		"modelWorldPoints: %s", LPMeshable.formatPVectorList(modelWorldPoints)));
+
 	LPStructure modelStruct = new LPStructure().updateFromPlaneDebugPoints(modelWorldPoints);
 	config.debugStructures.add(modelStruct);
 
-	List<PVector> flattenedModelWorldPoints = new ArrayList<PVector>();
+	List<PVector> flatModelWorldPoints = new ArrayList<PVector>();
 	for(PVector point: modelWorldPoints) {
-		flattenedModelWorldPoints.add(LPMeshable.coordinateTransform(flattener, point));
+		flatModelWorldPoints.add(LPMeshable.coordinateTransform(flattener, point));
 	}
 
 	LPStructure flattenedModelStruct = new LPStructure()
-		.updateFromPlaneDebugPoints(flattenedModelWorldPoints);
+		.updateFromPlaneDebugPoints(flatModelWorldPoints);
 	config.debugStructures.add(flattenedModelStruct);
 
-	logger.info(String.format("flattenedModelWorldPoints: %s", LPMeshable.formatPVectorList(flattenedModelWorldPoints)));
+	logger.info(String.format(
+		"flatModelWorldPoints: %s", LPMeshable.formatPVectorList(flatModelWorldPoints)));
 
 	List<PVector> flatBoundsPolygon = new ArrayList<PVector>();
-	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][0]));
-	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][0]));
-	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][1]));
-	flatBoundsPolygon.add(new PVector(flatBounds[1][0], flatBounds[1][1]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][0], flatBounds[2][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][0], flatBounds[2][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][1], flatBounds[2][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][1], flatBounds[2][0]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][0], flatBounds[2][1]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][0], flatBounds[2][1]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][1], flatBounds[1][1], flatBounds[2][1]));
+	flatBoundsPolygon.add(new PVector(flatBounds[0][0], flatBounds[1][1], flatBounds[2][1]));
 
 	LPStructure flatBoundsStruct = new LPStructure()
 		.updateFromPolygon(flatBoundsPolygon);
 	config.debugStructures.add(flatBoundsStruct);
+
+	List<PVector> modelBoundsPolygon = new ArrayList<PVector>();
+	modelBoundsPolygon.add(new PVector(modelBounds[0][0], modelBounds[1][0], modelBounds[2][0]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][1], modelBounds[1][0], modelBounds[2][0]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][1], modelBounds[1][1], modelBounds[2][0]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][0], modelBounds[1][1], modelBounds[2][0]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][0], modelBounds[1][0], modelBounds[2][1]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][1], modelBounds[1][0], modelBounds[2][1]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][1], modelBounds[1][1], modelBounds[2][1]));
+	modelBoundsPolygon.add(new PVector(modelBounds[0][0], modelBounds[1][1], modelBounds[2][1]));
+
+	LPStructure modelBoundsPolygonStruct = new LPStructure()
+		.updateFromPolygon(modelBoundsPolygon);
+	config.debugStructures.add(modelBoundsPolygonStruct);
+
+
 }
 
 void movieSetup() {
@@ -202,13 +230,13 @@ void onUIReadyMovie(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudi
 	if(movie == null) movieSetup();
 	List<float[]> vertexUVPairs = new ArrayList<float[]>();
 
-	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][0], 0, 0, movie.height});
-	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][0], 0, movie.width, movie.height});
-	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][1], 0, movie.width, 0});
-	vertexUVPairs.add(new float[]{flatBounds[1][0], flatBounds[1][1], 0, 0, 0});
+	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][0], 0, 0, 0});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][0], 0, movie.width, 0});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][1], 0, movie.width, movie.height});
+	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][1], 0, 0, movie.height});
 	for(float[] vertexUVPair : vertexUVPairs) {
 		PVector uvPosition = new PVector(vertexUVPair[0], vertexUVPair[1], vertexUVPair[2]);
-		PVector unflattened = LPMeshable.coordinateTransform(unFlattener, uvPosition);
+		PVector unflattened = LPMeshable.coordinateTransform(unflattener, uvPosition);
 		vertexUVPair[0] = unflattened.x;
 		vertexUVPair[1] = unflattened.y;
 		vertexUVPair[2] = unflattened.z;
@@ -217,6 +245,12 @@ void onUIReadyMovie(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudi
 			LPMeshable.formatPVector(unflattened)));
 	}
 	ui.preview.addComponent(new UIMovie(vertexUVPairs));
+
+	PMatrix3D identity = new PMatrix3D();
+	identity.apply(flattener);
+	identity.apply(unflattener);
+
+	logger.info(String.format("identity: %s", LPMeshable.formatPMatrix3D(identity)));
 }
 
 void draw() {
