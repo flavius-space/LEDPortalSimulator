@@ -27,9 +27,10 @@ String[] structures =  {
 	"dome_render_6_5_Left_Stack_FACES"
 };
 //String activeModel = "dome_render_6_5_Test_9_4_LEDs";
-String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
+// String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_Single_ALL_PANELS";
+String activeModel = "dome_render_6_5_Dome_ALL_PANELS";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 // String activeMovie = null;
 String activeMovie = "Steamed Hams.mp4";
@@ -162,9 +163,10 @@ final String SERIAL_PORT = "/dev/tty.usbserial-AD025M69";
 void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
 	// Add custom components or output drivers here
 	try {
-		int pointIndex = 0;
-		int nPoints = 300;
-		int nChannels = 1;
+		// int pointIndex = 0;
+		int pointIndex = 214 * 6;
+		int nPoints = 340;
+		int nChannels = 8;
 		PixelBlazeExpanderOutput output = new PixelBlazeExpanderParentOutput(lx, this, SERIAL_PORT);
 		for (int channelNumber = 0; channelNumber < nChannels; channelNumber++) {
 			int[] points = new int[nPoints];
@@ -174,6 +176,7 @@ void initialize(final heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStu
 			}
 			PixelBlazeExpanderOutput child = new PixelBlazeExpanderWS281XOutput(lx, this, SERIAL_PORT, channelNumber, points);
 			// PixelBlazeExpanderOutput child = new PixelBlazeExpanderAPA102DataOutput(lx, this, SERIAL_PORT, channelNumber, APA102_FREQ, points);
+			child.gammaCorrection.setNormalized(0.5);
 			output.addChild(child);
 		}
 		// PixelBlazeExpanderOutput clock = new PixelBlazeExpanderAPA102ClockOutput(lx, this, SERIAL_PORT, APA102_CLOCK_CHANNEL, APA102_FREQ);

@@ -33,6 +33,16 @@ LXStudio Simulator and animations for Flavius' LED Art Installation
 
 Open `LEDPortalSimulator` in Processing
 
+on macos:
+
+```bash
+open -a Processing LEDPortalSimulator/LEDPortalSimulator.pde
+```
+
+if u want steamed hams, just open (cmd-O) the  `LEDPortalSimulator/presets/movieFrame.lxp` preset.
+
+![Steamed Domes](steamed%20domes.gif)
+
 ## Python Utility Scripts (`tools`)
 
 ### Setup

@@ -1,6 +1,6 @@
 {
   "version": "0.1",
-  "timestamp": 1592213860916,
+  "timestamp": 1592214878421,
   "engine": {
     "id": 1,
     "class": "heronarts.lx.LXEngine",
@@ -62,7 +62,7 @@
         },
         "effects": [],
         "clips": [],
-        "patternIndex": 3,
+        "patternIndex": 2,
         "patterns": [
           {
             "id": 23,
@@ -110,7 +110,7 @@
               "label": "Simplex",
               "ColorPallete": 0,
               "Space Scape": 1.0,
-              "Time Scale": 0.34000000543892384
+              "Time Scale": 0.8399999942630529
             },
             "modulation": {
               "modulators": [],
@@ -390,7 +390,7 @@
             "phase": 0.0,
             "exp": 0.0
           },
-          "basis": 0.19175541611501
+          "basis": 0.0959035520367716
         },
         {
           "id": 114,
@@ -545,16 +545,16 @@
         "mode": 0,
         "animation": false,
         "animationTime": 100.0,
-        "projection": 0,
+        "projection": 1,
         "perspective": 15.0,
         "depth": 1.0,
         "phiLock": true,
         "centerPoint": false,
         "camera": {
           "active": true,
-          "radius": 20.889403934484445,
-          "theta": 3.3630000000000475,
-          "phi": 0.987716673851018,
+          "radius": 2.0838461005686164,
+          "theta": 6.246000000000056,
+          "phi": 0.003716673851017189,
           "x": 0.43551308661699295,
           "y": -6.4373016357421875E-6,
           "z": 0.007165152579545975
@@ -562,9 +562,9 @@
         "cue": [
           {
             "active": true,
-            "radius": 20.889403934484445,
-            "theta": 3.3630000000000475,
-            "phi": 0.987716673851018,
+            "radius": 2.0838461005686164,
+            "theta": 6.246000000000056,
+            "phi": 0.003716673851017189,
             "x": 0.43551308661699295,
             "y": -6.4373016357421875E-6,
             "z": 0.007165152579545975
