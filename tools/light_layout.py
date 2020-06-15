@@ -97,10 +97,10 @@ def compose_matrix_components(components):
         f"Matrix Components:" + ENDLTAB
         + format_matrix_components(components))
 
-    composition = reduce(lambda m, n: n @ m, reversed([
+    composition = reduce(lambda m, n: m @ n, [
         component_type(*component_args)
         for component_type, component_args in components
-    ]))
+    ])
     inv_composition = reduce(lambda m, n: n @ m, [
         component_type(*component_args).inverted()
         for component_type, component_args in components
@@ -124,13 +124,13 @@ def plane_flattener(center, normal):
 
     cross_z = normal.cross(Z_AXIS_3D)
     logging.debug(f"Normal cross Z-Axis: {ENDLTAB + format_vector(cross_z)}")
-    angle_z = normal.angle(Z_AXIS_3D)
-    logging.debug(f"Normal angle with Z-axis: {angle_z}")
-    rotation = Matrix.Rotation(angle_z, 3, cross_z).to_4x4()
-    logging.debug(f"Rotation Matrix:" + ENDLTAB + format_matrix(rotation))
+    zenith = normal.angle(Z_AXIS_3D)
+    logging.debug(f"Normal angle with Z-axis (Zenith): {zenith}")
+    zenith_rotation = Matrix.Rotation(zenith, 3, cross_z).to_4x4()
+    logging.debug(f"Zenith Rotation Matrix:" + ENDLTAB + format_matrix(zenith_rotation))
     translation = Matrix.Translation(-center)
     logging.debug(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
-    flattener = rotation @ translation
+    flattener = zenith_rotation @ translation
     logging.debug(f"Flattener Matrix:" + ENDLTAB + format_matrix(flattener))
     return flattener
 
