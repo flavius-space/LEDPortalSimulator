@@ -68,6 +68,7 @@ public class BillboardText extends UI3dComponent {
 	public PVector position;
 	public float s;
 	public color c;
+	public int alpha = 100;
 	public BillboardText(String text, PVector position, float s, color c) {
 		super();
 		this.text = text;
@@ -80,7 +81,7 @@ public class BillboardText extends UI3dComponent {
 		PVector uiPosition = LPMeshable.worldUITransform(this.position);
 		pg.pushStyle();
 		pg.textMode(SHAPE);
-		pg.fill(this.c);
+		pg.fill(this.c, this.alpha);
 		pg.textSize(this.s);
 		pg.text(this.text, uiPosition.x, uiPosition.y, uiPosition.z);
 		pg.popStyle();
@@ -98,6 +99,7 @@ public class UIMovie extends UI3dComponent {
 		pg.pushStyle();
 		pg.noStroke();
 		pg.beginShape();
+		pg.tint(255, 126);
 		pg.texture(movieFrame);
 		int i = 0;
 

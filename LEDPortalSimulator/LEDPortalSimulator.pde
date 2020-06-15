@@ -26,8 +26,10 @@ String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
 };
+//String activeModel = "dome_render_6_5_Test_9_4_LEDs";
 String activeModel = "dome_render_6_5_LEDs_Iso_1220_ALL_PANELS";
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_PANELS_0";
+// String activeModel = "dome_render_6_5_LEDs_Iso_1220_Single_ALL_PANELS";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
 // String activeMovie = null;
 String activeMovie = "Steamed Hams.mp4";
@@ -52,7 +54,7 @@ void setup() {
 	modelBounds = config.getModelBounds();
 	flatBounds = config.getModelFlatBounds();
 
-	debugSetup();
+	// debugSetup();
 
 	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
 
