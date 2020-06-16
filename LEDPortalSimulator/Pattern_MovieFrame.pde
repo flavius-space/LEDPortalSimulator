@@ -1,9 +1,9 @@
-public class videoFrame extends LXPattern {
+public class LPVideoFrame extends LXPattern {
 	public String getAuthor() {
 		return "Derwent McElhinney";
 	}
 
-	public videoFrame(LX lx){
+	public LPVideoFrame(LX lx){
 		super(lx);
 	}
 
@@ -13,6 +13,9 @@ public class videoFrame extends LXPattern {
 	boolean firstRun = true;
 
 	public void run(double deltaMs) {
+        if (videoFrame == null) {
+            return;
+        }
 		for (LXPoint point : model.points ) {
 			PVector uiPosition = new PVector(point.x, point.y, point.z);
 			PVector worldPosition = LPMeshable.pixelWorldTransform(uiPosition);
