@@ -100,7 +100,7 @@ public class UIMovie extends UI3dComponent {
 		pg.noStroke();
 		pg.beginShape();
 		pg.tint(255, 126);
-		pg.texture(movieFrame);
+		pg.texture(videoFrame);
 		int i = 0;
 
 		for(float[] vertexUVPair : this.vertexUVPairs) {

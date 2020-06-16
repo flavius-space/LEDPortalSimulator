@@ -1,9 +1,9 @@
-public class MovieFrame extends LXPattern {
+public class videoFrame extends LXPattern {
 	public String getAuthor() {
 		return "Derwent McElhinney";
 	}
 
-	public MovieFrame(LX lx){
+	public videoFrame(LX lx){
 		super(lx);
 	}
 
@@ -19,7 +19,7 @@ public class MovieFrame extends LXPattern {
 			PVector flattenedPosition = LPMeshable.coordinateTransform(flattener, worldPosition);
 			u = (flattenedPosition.x - flatBounds[0][0]) / (flatBounds[0][1] - flatBounds[0][0]);
 			v = (flattenedPosition.y - flatBounds[1][0]) / (flatBounds[1][1] - flatBounds[1][0]);
-			pixelValue = movieFrame.get(int(movieFrame.width * u), int(movieFrame.height * v));
+			pixelValue = videoFrame.get(int(videoFrame.width * u), int(videoFrame.height * v));
 			if (firstRun && point.index < 10) {
 				logger.info(String.format(
 					"point[%d] at %s -> %s -> %s has u %7.3f , v %7.3f, %7x",

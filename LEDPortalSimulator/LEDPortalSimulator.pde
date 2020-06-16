@@ -13,6 +13,11 @@
 
 import processing.video.*;
 import java.util.logging.Logger;
+import java.awt.GraphicsEnvironment;
+import java.awt.GraphicsDevice;
+import java.awt.Robot;
+import java.awt.image.BufferedImage;
+import java.awt.Rectangle;
 
 heronarts.lx.studio.LXStudio lx;
 
@@ -21,7 +26,8 @@ private static final Logger logger = Logger.getLogger(PApplet.class.getName());
 LXModel model;
 LPSimConfig config;
 Movie movie;
-PImage movieFrame;
+Robot robot;
+PImage videoFrame;
 String[] structures =  {
 	"dome_render_6_5_Dome_EDGES",
 	"dome_render_6_5_Left_Stack_FACES"
@@ -32,8 +38,15 @@ String[] structures =  {
 // String activeModel = "dome_render_6_5_LEDs_Iso_1220_Single_ALL_PANELS";
 String activeModel = "dome_render_6_5_Dome_ALL_PANELS";
 // String activeModel = "dome_render_6_5_Test_12_10_LEDs";
-// String activeMovie = null;
-String activeMovie = "Steamed Hams.mp4";
+// float[][] screencapBounds;
+float[] screencapBounds = new float[]{ 0, 0, 1, 1 };
+Rectangle screencapRectangle;
+
+// GraphicsEnvironment activeEnvironment;
+GraphicsDevice activeScreen;
+
+String activeMovie;
+// String activeMovie = "Steamed Hams.mp4";
 
 PMatrix3D flattener;
 PMatrix3D unflattener;
@@ -59,7 +72,7 @@ void setup() {
 
 	lx = new heronarts.lx.studio.LXStudio(this, model, MULTITHREADED);
 
-	if(movie == null) movieSetup();
+	if(videoFrame == null) videoSetup();
 
 	lx.ui.setCoordinateSystem(heronarts.p3lx.ui.UI.CoordinateSystem.valueOf("RIGHT_HANDED"));
 	lx.ui.setResizable(RESIZABLE);
@@ -138,18 +151,43 @@ void debugSetup() {
 		.updateFromPolygon(modelBoundsPolygon);
 	config.debugStructures.add(modelBoundsPolygonStruct);
 
+	PMatrix3D identity = new PMatrix3D();
+	identity.apply(flattener);
+	identity.apply(unflattener);
 
+	logger.info(String.format("identity: %s", LPMeshable.formatPMatrix3D(identity)));
 }
 
-void movieSetup() {
+void videoSetup() {
 	if (activeMovie != null) {
 		movie = new Movie((PApplet)this, activeMovie);
 		movie.loop();
 		while(!movie.available());
 		movie.read();
-		movieFrame = createImage(movie.width, movie.height, RGB);
-		logger.fine(String.format("Movie: %d x %d", movie.width, movie.height));
+		videoFrame = createImage(movie.width, movie.height, RGB);
+	} else if (screencapBounds != null) {
+		activeScreen = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+		int activeScreenWidth = activeScreen.getDisplayMode().getWidth();
+		int activeScreenHeight = activeScreen.getDisplayMode().getHeight();
+		logger.info(String.format(
+			"active screen dimensions: [%d, %d]", activeScreenWidth, activeScreenHeight));
+		screencapRectangle = new Rectangle(
+			int(screencapBounds[0] * activeScreenWidth),
+			int(screencapBounds[1] * activeScreenHeight),
+			int(screencapBounds[2] * activeScreenWidth),
+			int(screencapBounds[3] * activeScreenHeight)
+		);
+		logger.info(String.format(
+			"screencap rectangle: %s", screencapRectangle));
+		try {
+			robot = new Robot(activeScreen);
+		} catch (Exception e) {
+			logger.warning(e.getMessage());
+		}
+		BufferedImage screenBuffer = robot.createScreenCapture(screencapRectangle);
+		videoFrame = new PImage(screenBuffer);
 	}
+	logger.info(String.format("videoFrame: %d x %d", videoFrame.width, videoFrame.height));
 }
 
 // final String OPC_IP = "192.168.1.20";
@@ -224,46 +262,53 @@ void onUIReady(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI 
 		ui.preview.addComponent(new UIDebugWireFrame(debugStructure));
 	}
 
-	if (activeMovie != null) {
-		onUIReadyMovie(lx, ui);
-	}
+	onUIReadyMovie(lx, ui);
 
 	ui.preview.addComponent(new UIAxes());
 }
 
 void onUIReadyMovie(heronarts.lx.studio.LXStudio lx, heronarts.lx.studio.LXStudio.UI ui) {
-	if(movie == null) movieSetup();
+	if(videoFrame == null) videoSetup();
 	List<float[]> vertexUVPairs = new ArrayList<float[]>();
 
 	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][0], 0, 0, 0});
-	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][0], 0, movie.width, 0});
-	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][1], 0, movie.width, movie.height});
-	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][1], 0, 0, movie.height});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][0], 0, videoFrame.width, 0});
+	vertexUVPairs.add(new float[]{flatBounds[0][1], flatBounds[1][1], 0, videoFrame.width, videoFrame.height});
+	vertexUVPairs.add(new float[]{flatBounds[0][0], flatBounds[1][1], 0, 0, videoFrame.height});
 	for(float[] vertexUVPair : vertexUVPairs) {
 		PVector uvPosition = new PVector(vertexUVPair[0], vertexUVPair[1], vertexUVPair[2]);
 		PVector unflattened = LPMeshable.coordinateTransform(unflattener, uvPosition);
 		vertexUVPair[0] = unflattened.x;
 		vertexUVPair[1] = unflattened.y;
 		vertexUVPair[2] = unflattened.z;
-		logger.info(String.format(
+		logger.fine(String.format(
 			"unflattened uv position %s to %s", LPMeshable.formatPVector(uvPosition),
 			LPMeshable.formatPVector(unflattened)));
 	}
 	ui.preview.addComponent(new UIMovie(vertexUVPairs));
 
-	PMatrix3D identity = new PMatrix3D();
-	identity.apply(flattener);
-	identity.apply(unflattener);
-
-	logger.info(String.format("identity: %s", LPMeshable.formatPMatrix3D(identity)));
 }
 
 void draw() {
+	if (screencapRectangle != null) {
+		PImage screenBuffer = new PImage(robot.createScreenCapture(screencapRectangle));
+		videoFrame.copy(
+			screenBuffer,
+			0,
+			0,
+			screenBuffer.width,
+			screenBuffer.height,
+			0,
+			0,
+			screenBuffer.width,
+			screenBuffer.height
+		);
+	}
 }
 
 void movieEvent(Movie m) {
 	m.read();
-	if(movieFrame != null) movieFrame.copy(m, 0, 0, m.width, m.height, 0, 0, m.width, m.height);
+	if(videoFrame != null) videoFrame.copy(m, 0, 0, m.width, m.height, 0, 0, m.width, m.height);
 }
 
 // Configuration flags
