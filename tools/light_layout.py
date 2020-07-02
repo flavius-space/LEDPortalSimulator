@@ -45,18 +45,29 @@ finally:
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 Z_OFFSET = -0.01
 COLLECTION_NAME = 'LEDs'
-# LED_SPACING = 1.0/16
-# LED_SPACING = 0.2
-# LED_SPACING = 0.05601
-LED_SPACING = 1.409/26
-SERPENTINE = True
+LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
+WIRING_SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
 LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
-# LED_MARGIN = 0.0
-# GRID_GRADIENT = inf
+LED_MARGIN_VERTICAL_TOP = None
+LED_MARGIN_LEFT = None
+LED_MARGIN_RIGHT = None
 IGNORE_LAMPS = False
 EXPORT_TYPE = 'PANELS'
+WIRING_REVERSE = False
+LED_SPACING_VERTICAL = None
 
+# TeleCortex Settings
+
+# LED_SPACING = 1.0/16
+# LED_SPACING_VERTICAL = 1.0/16
+# GRID_GRADIENT = inf
+# LED_MARGIN = 0.025
+# LED_MARGIN_VERTICAL_TOP = 0.025
+# LED_MARGIN_LEFT = 0.025
+# LED_MARGIN_RIGHT = 0.025
+# WIRING_REVERSE = True
+# Z_OFFSET = 0.01
 
 # def plot_vecs_2d(vecs):
 #     # DELET THIS
@@ -410,10 +421,15 @@ def generate_lights_for_convex_polygon(
         quad_left_x: float,
         quad_left_height: float,
         spacing: float,
-        z_height: float = 0.0,
-        margin: float = 0.0,
-        serpentine: bool = True,
+        spacing_vertical: float = None,
         grid_gradient: float = inf,
+        margin: float = 0.0,
+        margin_vertical_top: float = None,
+        margin_left: float = None,
+        margin_right: float = None,
+        z_offset: float = 0.0,
+        wiring_serpentine: bool = True,
+        wiring_reverse: bool = None
 ):
     r"""
     Geometric Assumptions:
@@ -455,9 +471,9 @@ def generate_lights_for_convex_polygon(
         quad_left_x (float):
         quad_left_height (float):
         spacing (float):
-        z_height (float):
+        z_offset (float):
         margin (float): minimum spacing between polygon edges and pixels, default: 0.0
-        serpentine (bool): pixels alternate direction between each row, default: True
+        wiring_serpentine (bool): pixels alternate direction between each row, default: True
         grid_gradient (bool): determines how much each line of pixels is offset from the last. Inf
             graadient means grid axes are 90 degrees
 
@@ -466,7 +482,7 @@ def generate_lights_for_convex_polygon(
     """
     logging.debug(
         f"Spacing: {spacing: 7.3f}\n"
-        f"Z Height: {z_height: 7.3f}\n"
+        f"Z Height: {z_offset: 7.3f}\n"
         f"Margin: {margin: 7.3f}\n"
         f"Grid Gradient: {grid_gradient: 7.3f}"
     )
@@ -481,15 +497,16 @@ def generate_lights_for_convex_polygon(
     logging.debug(
         f"Left / Right / Grid Gradients: "
         f"{gradient_left: 7.3f} / {gradient_right: 7.3f} / {grid_gradient: 7.3f}")
-    spacing_vertical = abs(gradient_sin(grid_gradient) * spacing)
+    if spacing_vertical is None:
+        spacing_vertical = abs(gradient_sin(grid_gradient) * spacing)
     spacing_shear = abs(gradient_cos(grid_gradient) * spacing)
     logging.debug(
         f"Horizontal / Vertical / Shear Spacing: "
         f"{spacing: 7.3f} / {spacing_vertical: 7.3f} / {spacing_shear: 7.3f}")
 
-    margin_vertical_top = margin_intersect_offset(gradient_left, gradient_right, base_width, margin)
     if margin_vertical_top is None:
-        margin_vertical_top = margin
+        margin_vertical_top = margin_intersect_offset(
+            gradient_left, gradient_right, base_width, margin) or margin
 
     logging.debug(f"Vertical / Top Margin: {margin: 7.3f} / {margin_vertical_top: 7.3f}")
 
@@ -497,8 +514,10 @@ def generate_lights_for_convex_polygon(
         height, spacing_vertical, margin, margin_vertical_top, axis_name="Vertical")
     vertical_start = margin + vertical_padding
 
-    margin_left = abs(margin/gradient_sin(gradient_left))
-    margin_right = abs(margin/gradient_sin(gradient_right))
+    if margin_left is None:
+        margin_left = abs(margin/gradient_sin(gradient_left))
+    if margin_right is None:
+        margin_right = abs(margin/gradient_sin(gradient_right))
     logging.debug(f"Left / Right Margin: {margin_left: 7.3f} / {margin_right: 7.3f}")
 
     horizontal_start_width = base_width \
@@ -546,17 +565,19 @@ def generate_lights_for_convex_polygon(
             for horizontal_idx in range(row_grid_start, row_grid_end + 1):
                 row.append((horizontal_idx, vertical_idx))
 
-        if serpentine and vertical_idx % 2:
+        if wiring_serpentine and vertical_idx % 2:
             row = list(reversed(row))
         logging.debug(f"Row ({len(row)}): {row}")
 
         lights.extend(row)
+    if wiring_reverse:
+        lights = list(reversed(lights))
     logging.debug(f"Lights (Norm):" + ENDLTAB + ENDLTAB.join(map(repr, lights)))
 
     # Calculate transformation matrix and inverse
 
     transformation_components = [
-        (Matrix.Translation, [Vector((horizontal_start, vertical_start, z_height))]),
+        (Matrix.Translation, [Vector((horizontal_start, vertical_start, z_offset))]),
         (Matrix.Scale, [gradient_sin(grid_gradient), 4, Y_AXIS_3D]),
         (Matrix.Shear, ['XZ', 4, (gradient_cos(grid_gradient), 0)]),
         (Matrix.Scale, [spacing, 4]),
@@ -669,11 +690,16 @@ def main():
             panel_vertices[2].y,
             panel_vertices[-1].x,
             panel_vertices[-1].y,
-            LED_SPACING,
-            Z_OFFSET,
+            spacing=LED_SPACING,
+            spacing_vertical=LED_SPACING_VERTICAL,
+            grid_gradient=GRID_GRADIENT,
             margin=LED_MARGIN,
-            serpentine=SERPENTINE,
-            grid_gradient=GRID_GRADIENT
+            margin_vertical_top=LED_MARGIN_VERTICAL_TOP,
+            margin_left=LED_MARGIN_LEFT,
+            margin_right=LED_MARGIN_RIGHT,
+            wiring_serpentine=WIRING_SERPENTINE,
+            wiring_reverse=WIRING_REVERSE,
+            z_offset=Z_OFFSET,
         )
 
         panel_pixel_matrix = panel_matrix @ pixel_matrix

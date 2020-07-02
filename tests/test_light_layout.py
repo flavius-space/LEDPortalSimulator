@@ -38,12 +38,12 @@ class TestLightLayout(unittest.TestCase):
         width = 1.1
         height = 2.2
         spacing = 0.5
-        z_height = 0.15
+        z_offset = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((0, height))]
         expected_matrix = Matrix([
             [spacing, 0, 0, 0.025],
             [0, spacing, 0, 0.1],
-            [0, 0, spacing, z_height],
+            [0, 0, spacing, z_offset],
             [0, 0, 0, 1]
         ])
         expected_lights = [
@@ -65,8 +65,8 @@ class TestLightLayout(unittest.TestCase):
             vertices[2].y,
             vertices[-1].x,
             vertices[-1].y,
-            spacing,
-            z_height
+            spacing=spacing,
+            z_offset=z_offset
         )
 
         # Then
@@ -78,12 +78,12 @@ class TestLightLayout(unittest.TestCase):
         width = 1.1
         height = 2.2
         spacing = 0.5
-        z_height = 0.15
+        z_offset = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
         expected_matrix = Matrix([
             [spacing, 0, 0, 0.075],
             [0, spacing, 0, 0.1],
-            [0, 0, spacing, z_height],
+            [0, 0, spacing, z_offset],
             [0, 0, 0, 1]
         ])
         expected_lights = [(0, 0), (1, 0), (2, 0), (2, 1), (1, 1), (1, 2), (2, 2), (2, 3), (2, 4)]
@@ -95,8 +95,8 @@ class TestLightLayout(unittest.TestCase):
             vertices[2].y,
             vertices[-1].x,
             vertices[-1].y,
-            spacing,
-            z_height
+            spacing=spacing,
+            z_offset=z_offset
         )
 
         # Then
@@ -108,12 +108,12 @@ class TestLightLayout(unittest.TestCase):
         width = 1.1
         height = 2.2
         spacing = 0.2
-        z_height = 0.15
+        z_offset = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width, height))]
         expected_matrix = Matrix([
             [spacing, 0, 0, 0.190],
             [0, spacing, 0, 0.138],
-            [0, 0, spacing, z_height],
+            [0, 0, spacing, z_offset],
             [0, 0, 0, 1]
         ])
 
@@ -152,9 +152,9 @@ class TestLightLayout(unittest.TestCase):
             vertices[2].y,
             vertices[-1].x,
             vertices[-1].y,
-            spacing,
-            z_height,
-            spacing/2
+            spacing=spacing,
+            z_offset=z_offset,
+            margin=spacing/2
         )
 
         # Then
@@ -166,12 +166,12 @@ class TestLightLayout(unittest.TestCase):
         width = 3.3
         height = 2.2
         spacing = 0.5
-        z_height = 0.15
+        z_offset = 0.15
         vertices = [Vector((0, 0)), Vector((width, 0)), Vector((width/2, height))]
         expected_matrix = Matrix([
             [spacing, 0, 0, 0.15],
             [0, spacing, 0, 0.10],
-            [0, 0, spacing, z_height],
+            [0, 0, spacing, z_offset],
             [0, 0, 0, 1]
         ])
         expected_lights = [
@@ -201,8 +201,8 @@ class TestLightLayout(unittest.TestCase):
             vertices[2].y,
             vertices[-1].x,
             vertices[-1].y,
-            spacing,
-            z_height
+            spacing=spacing,
+            z_offset=z_offset
         )
 
         # Then
@@ -298,7 +298,7 @@ class TestLightLayout(unittest.TestCase):
         width = 1.1
         height = 2.2
         spacing = 0.5
-        z_height = 0.15
+        z_offset = 0.15
         vertices = [
             Vector((0, 0)),
             Vector((width, 0)),
@@ -336,8 +336,8 @@ class TestLightLayout(unittest.TestCase):
             vertices[2].y,
             vertices[-1].x,
             vertices[-1].y,
-            spacing,
-            z_height
+            spacing=spacing,
+            z_offset=z_offset
         )
 
         # Then
