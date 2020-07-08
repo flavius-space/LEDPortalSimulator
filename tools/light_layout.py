@@ -40,7 +40,7 @@ try:
         setup_logger, mode_set, serialise_matrix, export_json,
         get_selected_polygons_suffix, sanitise_names, matrix_isclose,
         format_matrix_components, serialise_vector, format_quaternion,
-        format_euler, format_vecs, format_angle
+        format_euler, format_vecs, format_angle, get_out_path
     )
 finally:
     sys.path = PATH
@@ -840,6 +840,7 @@ def main():
         # debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
 
     panels = []
+    fixtures = []
 
     selected_polygons, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
 
@@ -850,6 +851,30 @@ def main():
 
         panel = {
             'name': name
+        }
+
+        fixture = {
+            "id": poly_idx + 1,
+            "class": "flavius.ledportal.LPPanelFixture",
+            "parameters": {
+                "label": name,
+                # "selected": true,
+                # "enabled": false,
+                # "brightness": 1,
+                # "identify": false,
+                # "mute": false,
+                # "solo": false,
+                # "host": "127.0.0.1",
+                # "protocol": 0,
+                # "artNetUniverse": 0,
+                # "opcChannel": 0,
+                # "ddpDataOffset": 0,
+                # "kinetPort": 1,
+                # "positionMode": 0,
+                # "wiring": 0,
+                # "splitPacket": false,
+                # "pointsPerPacket": 170
+            },
         }
 
         world_center = obj.matrix_world @ polygon.center
@@ -891,17 +916,28 @@ def main():
         )
 
         panel['spacing'] = info['spacing']
+        fixture['parameters']['rowSpacing'] = info['spacing'][0]
+        fixture['parameters']['columnSpacing'] = info['spacing'][1]
+        fixture['parameters']['rowShear'] = info['spacing'][2]
+
         panel_pixel_matrix = panel_matrix @ info['transformation']
+
         panel_loc, panel_pitch, panel_yaw, panel_roll = \
             lx_decompose(panel_pixel_matrix)
         panel['location'] = serialise_vector(panel_loc)
-        panel['pitch'] = serialise_vector(panel_loc)
+        fixture['parameters']['x'] = panel_loc.x
+        fixture['parameters']['y'] = panel_loc.y
+        fixture['parameters']['z'] = panel_loc.z
         panel['pitch'] = panel_pitch
+        fixture['parameters']['pitch'] = panel_pitch
         panel['yaw'] = panel_yaw
+        fixture['parameters']['yaw'] = panel_yaw
         panel['roll'] = panel_roll
+        fixture['parameters']['roll'] = panel_roll
 
         panel['matrix'] = serialise_matrix(panel_pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
+        fixture['parameters']['pointIndicesJSON'] = repr(serialise_matrix(pixels)).replace(' ', '')
 
         panel_pixel_vertices = [
             info['inv_transformation'] @ vertex for vertex in panel_vertices
@@ -909,6 +945,7 @@ def main():
         panel['vertices'] = serialise_matrix(panel_pixel_vertices)
 
         panels.append(panel)
+        fixtures.append(fixture)
 
         if IGNORE_LAMPS:
             continue
@@ -928,7 +965,8 @@ def main():
             led_coll.objects.link(lamp_object)
 
     logging.info(f"exporting {len(panels)} {EXPORT_TYPE.lower()}")
-    export_json(obj, {EXPORT_TYPE.lower(): panels}, suffix)
+    export_json(get_out_path(obj, suffix), {EXPORT_TYPE.lower(): panels})
+    export_json(get_out_path(obj, suffix, 'lxm'), {'fixtures': fixtures})
 
     logging.info(f"*** Completed Light Layout ***")
 

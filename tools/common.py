@@ -151,7 +151,7 @@ def setup_logger(log_file=None, stream_log_level=None, file_log_level=None):
 
 
 def serialise_vector(vec):
-    return vec[:]
+    return list(vec[:])
 
 
 def serialise_matrix(mat):
@@ -167,10 +167,13 @@ def get_sanitised_modelname():
     return sanitise_names(model_name)
 
 
-def export_json(obj, serialised, suffix):
+def get_out_path(obj, suffix, extension="json"):
     model_name, _ = os.path.splitext(bpy.path.basename(bpy.context.blend_data.filepath))
     sanitised = sanitise_names(model_name, obj.name, suffix)
-    out_path = os.path.join(DATA_PATH, f"{sanitised}.json")
+    return os.path.join(DATA_PATH, f"{sanitised}.{extension}")
+
+
+def export_json(out_path, serialised):
     logging.info(f"exporting to {out_path}")
     with open(out_path, 'w') as stream:
         json.dump(serialised, stream, indent=4)

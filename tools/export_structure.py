@@ -15,7 +15,7 @@ try:
     sys.path.insert(0, THIS_DIR)
     imp.reload(__import__('common'))  # dumb hacks because of blender's pycache settings
     from common import (ENDLTAB, format_matrix, setup_logger, serialise_matrix, export_json,
-                        get_selected_polygons_suffix, apply_to_selected_objects)
+                        get_selected_polygons_suffix, apply_to_selected_objects, get_out_path)
 finally:
     sys.path = PATH
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
@@ -68,7 +68,7 @@ def main():
 
     structures = list(apply_to_selected_objects(serialise_object, EXPORT_TYPE))
 
-    export_json(bpy.context.object, {'structures': structures}, EXPORT_TYPE)
+    export_json(get_out_path(bpy.context.object, EXPORT_TYPE), {EXPORT_TYPE.lower(): structures})
 
     logging.info(f"*** Completed Structure Export {datetime.now().isoformat()} ***")
 
