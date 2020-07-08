@@ -1,15 +1,16 @@
-from contextlib import contextmanager
-import bpy
-from math import nan
-from mathutils import Vector
 import itertools
-import numpy as np
-import coloredlogs
 import json
-import re
-from pprint import pformat
 import logging
 import os
+import re
+from contextlib import contextmanager
+from math import degrees, nan
+from pprint import pformat
+
+import bpy
+import coloredlogs
+import numpy as np
+from mathutils import Vector
 
 ORIGIN_3D = Vector((0, 0, 0))
 X_AXIS_3D = Vector((1, 0, 0))
@@ -44,27 +45,79 @@ def matrix_isclose(a, b, *args, **kwargs):
 
 
 def format_vector(vec):
+    """
+    C => Cartesian (x, y, z)
+    S => Spherical (r, θ, ɸ)
+    P => Polar (r, θ)
+    """
     mag = vec.magnitude
     if len(vec) == 3:
         theta = vec.to_2d().angle_signed(X_AXIS_2D) if vec.to_2d().magnitude > 0 else nan
         phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
         return f"C({vec.x: 7.3f}, {vec.y: 7.3f}, {vec.z: 7.3f}) " \
-            f"P({mag: 7.3f}, {theta: 7.3f}, {phi: 7.3f})"
+            f"Sr: {mag: 7.3f}, Sθ: {format_angle(theta)}, Sɸ: {format_angle(phi)})"
     elif len(vec) == 2:
         theta = vec.angle_signed(X_AXIS_2D) if mag > 0 else nan
         return f"C({vec.x: 7.3f}, {vec.y: 7.3f}) " \
-            f"P({mag: 7.3f}, {theta: 7.3f})"
+            f"Pr: {mag: 7.3f}, Pθ: {format_angle(theta)})"
+
+
+def format_vecs(*vecs):
+    return " / ".join(map(format_vector, vecs))
+
+
+def format_direction(vec):
+    """
+    S => Spherical (r, θ, ɸ)
+    P => Polar (r, θ)
+    """
+    mag = vec.magnitude
+    if len(vec) == 3:
+        theta = vec.to_2d().angle_signed(X_AXIS_2D) if vec.to_2d().magnitude > 0 else nan
+        phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
+        return f"Sθ: {format_angle(theta)}, Sɸ: {format_angle(phi)})"
+    elif len(vec) == 2:
+        theta = vec.angle_signed(X_AXIS_2D) if mag > 0 else nan
+        return f"Pθ: {format_angle(theta)})"
 
 
 def format_matrix(mat, name="Matrix", indent=1):
+    """
+    F => Full
+    L => Location
+    R => Rotation
+    S => Scale
+    """
     loc, rot, scale = mat.decompose()
     out = '\n'.join([
         f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
-        f"{name} Location:" + ENDLTAB + pformat(loc).replace('\n', '\n\t'),
-        f"{name} Rotation:" + ENDLTAB + pformat(rot).replace('\n', '\n\t'),
-        f"{name} Scale:" + ENDLTAB + pformat(scale).replace('\n', '\n\t'),
+        f"{name} Loc:" + ENDLTAB + format_vector(loc),
+        f"{name} Rot:" + ENDLTAB + format_quaternion(rot),
+        f"{name} Scale:" + ENDLTAB + format_vector(scale),
     ])
     return out.replace('\n', ('\n' + (indent * '\t')))
+
+
+def format_quaternion(quat):
+    """
+    Qθ = Angle
+    QA = Axis
+    """
+    return f"Qθ: {format_angle(quat.angle)}, QA: {format_direction(quat.axis)}"
+
+
+def format_euler(euler):
+    """
+    ER = Roll
+    EP = Pitch
+    EY = Yaw
+    """
+    return f"ER: {format_angle(euler.x)}, EP: {format_angle(euler.y)}, EY: {format_angle(euler.z)}"
+
+
+def format_angle(rad):
+    # {rad/pi: 5.3f}πᴿ
+    return f"{degrees(rad): 7.3f}°"
 
 
 def format_matrix_components(components):
