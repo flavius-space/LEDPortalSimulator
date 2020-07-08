@@ -24,7 +24,7 @@ try:
     from light_layout import (
         generate_lights_for_convex_polygon, float_floor, float_ceil, float_abs_floor,
         float_abs_ceil, nan_divide, inf_divide, axis_centered_lines,
-        margin_intersect_offset, intersect_lines)
+        margin_intersect_offset, intersect_lines, lx_decompose)
     import common
     imp.reload(common)
     from common import ATOL, matrix_isclose, setup_logger
@@ -59,7 +59,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -71,7 +71,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_right_triangle_flip(self):
         # Given
@@ -89,7 +89,7 @@ class TestLightLayout(unittest.TestCase):
         expected_lights = [(0, 0), (1, 0), (2, 0), (2, 1), (1, 1), (1, 2), (2, 2), (2, 3), (2, 4)]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -101,7 +101,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_right_triangle_flip_margin(self):
         # Given
@@ -146,7 +146,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -159,7 +159,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_iso_triangle(self):
         # Given
@@ -195,7 +195,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -207,7 +207,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_equ_shear(self):
         # Given
@@ -232,7 +232,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -244,7 +244,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_equ_shear_margin(self):
         r"""
@@ -278,7 +278,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -291,7 +291,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_generate_lights_for_convex_polygon_rectangle(self):
         # Given
@@ -330,7 +330,7 @@ class TestLightLayout(unittest.TestCase):
         ]
 
         # When
-        _, matrix, lights = generate_lights_for_convex_polygon(
+        info, lights = generate_lights_for_convex_polygon(
             vertices[1].x,
             vertices[2].x,
             vertices[2].y,
@@ -342,7 +342,7 @@ class TestLightLayout(unittest.TestCase):
 
         # Then
         assert matrix_isclose(lights, expected_lights, atol=ATOL)
-        assert matrix_isclose(matrix, expected_matrix, atol=ATOL)
+        assert matrix_isclose(info['transformation'], expected_matrix, atol=ATOL)
 
     def test_axis_centered_lines(self):
         """
@@ -437,6 +437,28 @@ class TestLightLayout(unittest.TestCase):
         assert np.isclose(intersect_lines(inf, 1, 1, -1), (1, 0)).all()
         assert np.isclose(intersect_lines(1, 0, inf, 1), (1, 1)).all()
         assert np.isclose(intersect_lines(inf, 1, -1, 4.586), (1, 3.586)).all()
+
+    def test_lx_decompose(self):
+        # Given
+        matrix = Matrix((
+            (0.03184741735458374, 0.05174137279391289, -0.014522486366331577, -1.383671760559082),
+            (-0.04383426159620285, 0.004105888307094574, -0.01055119652301073, -0.235106959939003),
+            (-4.844257439629018e-09, 0.015545825473964214, 0.05112211033701897, 2.79781174659729),
+            (0.0, 0.0, 0.0, 1.0)
+        ))
+        expected_translation = Vector((-1.384,  -0.235,   2.798))
+        expected_angles = (
+            0,
+            -54,
+            19.348
+        )
+
+        # When
+        (translation, *angles) = lx_decompose(matrix)
+
+        # Then
+        assert np.isclose(expected_translation, translation, atol=ATOL).all()
+        assert np.isclose(expected_angles, angles, atol=ATOL).all()
 
 
 class TestFloatOps(unittest.TestCase):

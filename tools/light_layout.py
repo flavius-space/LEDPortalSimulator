@@ -16,10 +16,9 @@ import inspect
 import logging
 import os
 import sys
-from datetime import datetime
 from functools import reduce
 from itertools import starmap
-from math import ceil, copysign, floor, inf, isinf, nan, sqrt
+from math import ceil, copysign, floor, inf, isinf, nan, sqrt, cos, atan2, degrees
 from pprint import pformat
 
 import bpy
@@ -35,16 +34,21 @@ try:
     sys.path.insert(0, THIS_DIR)
     import common
     imp.reload(common)  # dumb hacks because of blender's pycache settings
-    from common import (Y_AXIS_3D, Z_AXIS_3D, ENDLTAB, format_matrix, format_vector, TRI_VERTS,
-                        ATOL, ORIGIN_3D, X_AXIS_2D, setup_logger, mode_set, serialise_matrix,
-                        export_json, get_selected_polygons_suffix, sanitise_names, matrix_isclose,
-                        format_matrix_components)
+    from common import (
+        X_AXIS_3D, Y_AXIS_3D, Z_AXIS_3D, ENDLTAB, format_matrix,
+        format_vector, TRI_VERTS, ATOL, ORIGIN_3D, X_AXIS_2D,
+        setup_logger, mode_set, serialise_matrix, export_json,
+        get_selected_polygons_suffix, sanitise_names, matrix_isclose,
+        format_matrix_components, serialise_vector, format_quaternion,
+        format_euler, format_vecs, format_angle
+    )
 finally:
     sys.path = PATH
 
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 Z_OFFSET = -0.01
-COLLECTION_NAME = 'LEDs'
+LED_COLLECTION_NAME = 'LEDs'
+DEBUG_COLLECTION_NAME = 'DEBUG'
 LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
 WIRING_SERPENTINE = True
 GRID_GRADIENT = sqrt(3)
@@ -55,6 +59,7 @@ LED_MARGIN_RIGHT = None
 IGNORE_LAMPS = False
 EXPORT_TYPE = 'PANELS'
 WIRING_REVERSE = False
+# LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
 LED_SPACING_VERTICAL = None
 
 # TeleCortex Settings
@@ -463,7 +468,6 @@ def generate_lights_for_convex_polygon(
          (Ml)|-| |                         | |-|(Mr)    <- Mr: right margin
            (ph)|-|                         |-|(ph)      <- ph: horizontal padding
 
-
     Args:
         base_width (float): distance between (0)->(1)
         quad_right_x (float):
@@ -576,16 +580,22 @@ def generate_lights_for_convex_polygon(
 
     # Calculate transformation matrix and inverse
 
-    transformation_components = [
-        (Matrix.Translation, [Vector((horizontal_start, vertical_start, z_offset))]),
+    geometry_info = {
+        'translation': Vector([horizontal_start, vertical_start, z_offset]),
+        'spacing': [spacing, spacing_vertical, spacing_shear],
+    }
+
+    geometry_info['transformation_components'] = [
+        (Matrix.Translation, [geometry_info['translation']]),
         (Matrix.Scale, [gradient_sin(grid_gradient), 4, Y_AXIS_3D]),
         (Matrix.Shear, ['XZ', 4, (gradient_cos(grid_gradient), 0)]),
         (Matrix.Scale, [spacing, 4]),
     ]
 
-    transformation, inv_transformation = compose_matrix_components(transformation_components)
+    geometry_info['transformation'], geometry_info['inv_transformation'] = \
+        compose_matrix_components(geometry_info['transformation_components'])
 
-    return inv_transformation, transformation, lights
+    return geometry_info, lights
 
 
 def normalise_plane(center, normal, vertices):
@@ -635,8 +645,183 @@ def normalise_plane(center, normal, vertices):
     return flattener.inverted() @ normaliser.inverted(), normalised
 
 
-def format_vecs(*vecs):
-    return " / ".join(map(format_vector, vecs))
+def lx_decompose(matrix, basis_transform=None):
+    """
+    Given `matrix` and `basis_transform`, decompose `matrix` into its translation and Trait-Bryan
+    (roll, pitch, yaw) angles.
+
+    `matrix`:
+    - is a transformation from X-Y-Z Basis to X-Y-Z Prime
+    - could contain a translation component
+    - could contain a rotation component
+    - could contain a shear in the Y Axis along the X axis
+
+    and `basis transform`:
+    - is a transformation from X-Y-Z to X-Y-Z Basis
+    - Has no scale / shear
+
+    @return
+    - `matrix` 's translation component
+    - `matrix` 's Tait–Bryan Yaw: A rotation of Psi about the Z axis in degrees
+    - `matrix` 's Tait–Bryan Pitch: A rotation of Theta about the Y axis in degrees
+    - `matrix` 's Tait–Bryan Roll: A rotation of Phi about the X axis in degrees
+
+    See https://upload.wikimedia.org/wikipedia/commons/5/53/Taitbrianzyx.svg
+    """
+
+    if basis_transform is None:
+        basis_transform = Matrix.Identity(4)
+
+    matrix = matrix @ basis_transform
+    logging.debug(f"matrix: {format_matrix(matrix)}")
+    euler = matrix.to_euler()
+    logging.debug(f"euler: {format_euler(euler)}")
+    quaternion = matrix.to_quaternion()
+    logging.debug(f"quaternion: {format_quaternion(quaternion)}")
+
+    orig = matrix @ ORIGIN_3D
+    logging.debug(f"orig: {format_vector(orig)}")
+
+    x_prime = matrix @ X_AXIS_3D - orig
+    logging.debug(f"x_prime: {format_vector(x_prime)}")
+    y_prime = matrix @ Y_AXIS_3D - orig
+    logging.debug(f"y_prime: {format_vector(y_prime)}")
+    z_prime = matrix @ Z_AXIS_3D - orig
+    logging.debug(f"z_prime: {format_vector(z_prime)}")
+
+    x_basis = basis_transform @ X_AXIS_3D
+    logging.debug(f"x_basis: {format_vector(x_basis)}")
+    y_basis = basis_transform @ Y_AXIS_3D
+    logging.debug(f"y_basis: {format_vector(y_basis)}")
+    z_basis = basis_transform @ Z_AXIS_3D
+    logging.debug(f"z_basis: {format_vector(z_basis)}")
+
+    # Calculate Tait–Bryan angles which are:
+    # - Used to create a transformation from X-Y-Z Basis to X-Y-Z Prime composed of:
+    #   - Yaw: A rotation about the Z axis by Psi
+    #   - Pitch: A rotation about the Y axis by Theta
+    #   - Roll: A rotation about the X axis by Phi
+
+    # Calculate X Projected, which is:
+    # - X Prime projected onto the X-Y Basis plane.
+    # - The X axis after the first Yaw rotation about the Z-axis
+    # - Nodes Perpendicular on the diagram
+    x_proj = Vector((
+        x_prime.dot(x_basis) / x_basis.magnitude,
+        x_prime.dot(y_basis) / y_basis.magnitude,
+        0
+    ))
+    logging.debug(f"x_proj: {format_vector(x_proj)}")
+
+    # Calculate Psi / Yaw, which is:
+    # - The rotation about the Z axis.
+    # - The angle between X Projected and X Basis
+    # - atan2(y, x) where:
+    #   - y is the component of X prime in the X basis,
+    #   - x is the component of X prime in the Y basis,
+    yaw = atan2(
+        x_prime.dot(y_basis) / y_basis.magnitude,
+        x_prime.dot(x_basis) / x_basis.magnitude
+    )
+    logging.debug(f"yaw: {format_angle(yaw)}")
+    yaw_quat = x_proj.rotation_difference(x_basis)
+    logging.debug(f"yaw_quat: {format_quaternion(yaw_quat)}")
+
+    # Calculate Theta / Pitch, which is:
+    # - The angle between X Prime and X Projected
+    # - atan2(y, x) where:
+    #   - y is the component of X prime in the Z basis
+    #   - x is the component of X prime in the X-Y basis plane (X Projected),
+    pitch = atan2(
+        - x_prime.dot(z_basis) / z_basis.magnitude,
+        x_proj.magnitude
+    )
+    logging.debug(f"pitch: {format_angle(pitch)}")
+    pitch_quat = x_prime.rotation_difference(x_proj)
+    logging.debug(f"pitch_quat: {format_quaternion(pitch_quat)}")
+
+    # Calculate Z Intermediate, which is:
+    # - The position of the Z Axis after the Yaw and Pitch translations
+    # - Not affected by yaw
+    z_inter = pitch_quat @ z_basis
+    logging.debug(f"z_inter: {format_vector(z_inter)}")
+
+    # Calculate Y Intermediate, which is:
+    # - The position of the Y Axis after the Yaw and Pitch translations
+    # - Not affected by pitch
+    y_inter = yaw_quat @ y_basis
+    logging.debug(f"y_inter: {format_vector(y_inter)}")
+
+    # Calculate Phi / Roll, which is:
+    # - The angle between Z Prime and Z Intermediate
+
+    roll_quat = z_prime.rotation_difference(z_inter)
+    roll = roll_quat.angle
+    if roll_quat.axis.dot(x_prime) > 0:
+        roll = -roll
+    logging.debug(f"roll: {format_angle(roll)}")
+    logging.debug(f"roll_quat: {format_quaternion(roll_quat)}")
+
+    # Sanity check:
+
+    rotation_components = [
+        (Matrix.Rotation, [yaw, 4, 'Z']),
+        (Matrix.Rotation, [pitch, 4, 'Y']),
+        (Matrix.Rotation, [roll, 4, 'X']),
+    ]
+
+    rotation, _ = compose_matrix_components(rotation_components)
+
+    orig_sanity = rotation @ ORIGIN_3D
+    logging.debug(f"orig_sanity: {format_vector(orig_sanity)}")
+    x_prime_sanity = rotation @ X_AXIS_3D - orig_sanity
+    logging.debug(f"x_prime_sanity: {format_vector(x_prime_sanity)}")
+    y_prime_sanity = rotation @ Y_AXIS_3D - orig_sanity
+    logging.debug(f"y_prime_sanity: {format_vector(y_prime_sanity)}")
+    z_prime_sanity = rotation @ Z_AXIS_3D - orig_sanity
+    logging.debug(f"z_prime_sanity: {format_vector(z_prime_sanity)}")
+
+    # if debug_coll:
+    #     with mode_set('OBJECT'):
+    #         for name, point in [
+    #             ("x_basis", x_basis.normalized()),
+    #             ("y_basis", y_basis.normalized()),
+    #             ("z_basis", z_basis.normalized()),
+    #             ("x_prime", x_prime.normalized()),
+    #             ("y_prime", y_prime.normalized()),
+    #             ("z_prime", z_prime.normalized()),
+    #             ("x_proj", x_proj.normalized()),
+    #             ("y_inter", y_inter.normalized()),
+    #             ("z_inter", z_inter.normalized()),
+    #             ("yaw_quat", yaw_quat.axis),
+    #             ("pitch_quat", pitch_quat.axis),
+    #             ("roll_quat", roll_quat.axis),
+    #             ("x_prime_sanity", x_prime_sanity.normalized()),
+    #             ("y_prime_sanity", y_prime_sanity.normalized()),
+    #             ("z_prime_sanity", z_prime_sanity.normalized()),
+    #         ]:
+    #             debug_verts = [
+    #                 orig,
+    #                 point + orig
+    #             ]
+    #             debug_edges = [
+    #                 (0, 1)
+    #             ]
+    #             debug_mesh = bpy.data.meshes.new(f"mesh_{name}")
+    #             debug_mesh.from_pydata(debug_verts, debug_edges, [])
+    #             debug_obj = bpy.data.objects.new(name, debug_mesh)
+    #             debug_coll.objects.link(debug_obj)
+
+    assert np.isclose(cos(yaw), cos(yaw_quat.angle), atol=ATOL)
+    assert np.isclose(cos(pitch), cos(pitch_quat.angle), atol=ATOL)
+    assert np.isclose(cos(roll), cos(roll_quat.angle), atol=ATOL)
+
+    assert all(np.isclose(x_prime.normalized(), x_prime_sanity.normalized(), atol=ATOL))
+    # The following is not true if shear is applied
+    # assert all(np.isclose(y_prime.normalized(), y_prime_sanity.normalized(), atol=ATOL))
+    assert all(np.isclose(z_prime.normalized(), z_prime_sanity.normalized(), atol=ATOL))
+
+    return orig, degrees(pitch), degrees(yaw), degrees(roll)
 
 
 def main():
@@ -645,10 +830,14 @@ def main():
     obj = bpy.context.object
     logging.info(f"Selected object: {obj.name}")
     logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
-    if not IGNORE_LAMPS:
-        with mode_set('OBJECT'):
-            bpy.ops.object.delete({"selected_objects": bpy.data.collections['LEDs'].all_objects})
-        coll = bpy.data.collections[COLLECTION_NAME]
+    with mode_set('OBJECT'):
+        if not IGNORE_LAMPS:
+            bpy.ops.object.delete({
+                "selected_objects": bpy.data.collections[LED_COLLECTION_NAME].all_objects})
+        # bpy.ops.object.delete({
+        #     "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
+        led_coll = bpy.data.collections[LED_COLLECTION_NAME]
+        # debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
 
     panels = []
 
@@ -675,7 +864,6 @@ def main():
         logging.debug(
             f"Vertices (local / world):" + ENDLTAB
             + ENDLTAB.join(starmap(format_vecs, zip(vertices, world_vertices))))
-
         # TODO: Make this configurable in object properties
         vertex_rotation = 1
         world_vertices = rotate_seq(world_vertices, vertex_rotation)
@@ -684,7 +872,7 @@ def main():
             world_center, world_normal, world_vertices
         )
 
-        inv_pixel_matrix, pixel_matrix, pixels = generate_lights_for_convex_polygon(
+        info, pixels = generate_lights_for_convex_polygon(
             panel_vertices[1].x,
             panel_vertices[2].x,
             panel_vertices[2].y,
@@ -702,13 +890,21 @@ def main():
             z_offset=Z_OFFSET,
         )
 
-        panel_pixel_matrix = panel_matrix @ pixel_matrix
+        panel['spacing'] = info['spacing']
+        panel_pixel_matrix = panel_matrix @ info['transformation']
+        panel_loc, panel_pitch, panel_yaw, panel_roll = \
+            lx_decompose(panel_pixel_matrix)
+        panel['location'] = serialise_vector(panel_loc)
+        panel['pitch'] = serialise_vector(panel_loc)
+        panel['pitch'] = panel_pitch
+        panel['yaw'] = panel_yaw
+        panel['roll'] = panel_roll
 
         panel['matrix'] = serialise_matrix(panel_pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
 
         panel_pixel_vertices = [
-            inv_pixel_matrix @ vertex for vertex in panel_vertices
+            info['inv_transformation'] @ vertex for vertex in panel_vertices
         ]
         panel['vertices'] = serialise_matrix(panel_pixel_vertices)
 
@@ -726,10 +922,10 @@ def main():
             lamp_data = bpy.data.lights.new(name=f"{name} data", type='POINT')
             lamp_data.energy = 1.0
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
-            norm_position = pixel_matrix @ Vector((position[0], position[1], 0))
+            norm_position = info['transformation'] @ Vector((position[0], position[1], 0))
             logging.debug('\t' + format_vector(norm_position))
             lamp_object.location = panel_matrix @ norm_position
-            coll.objects.link(lamp_object)
+            led_coll.objects.link(lamp_object)
 
     logging.info(f"exporting {len(panels)} {EXPORT_TYPE.lower()}")
     export_json(obj, {EXPORT_TYPE.lower(): panels}, suffix)
