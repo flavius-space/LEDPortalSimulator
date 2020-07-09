@@ -645,7 +645,7 @@ def normalise_plane(center, normal, vertices):
     return flattener.inverted() @ normaliser.inverted(), normalised
 
 
-def lx_decompose(matrix, basis_transform=None):
+def lx_decompose(matrix, basis_transform=None, debug_coll=None):
     """
     Given `matrix` and `basis_transform`, decompose `matrix` into its translation and Trait-Bryan
     (roll, pitch, yaw) angles.
@@ -724,8 +724,17 @@ def lx_decompose(matrix, basis_transform=None):
         x_prime.dot(x_basis) / x_basis.magnitude
     )
     logging.debug(f"yaw: {format_angle(yaw)}")
-    yaw_quat = x_proj.rotation_difference(x_basis)
+    yaw_quat = x_basis.rotation_difference(x_proj)
     logging.debug(f"yaw_quat: {format_quaternion(yaw_quat)}")
+
+    # Calculate the First Intermediate positions, which are:
+    # - The position of the X-Y-Z Axies after the first Yaw translation
+    x_inter_1 = yaw_quat @ x_basis
+    logging.debug(f"x_inter_1: {format_vector(x_inter_1)}")
+    y_inter_1 = yaw_quat @ y_basis
+    logging.debug(f"y_inter_1: {format_vector(y_inter_1)}")
+    z_inter_1 = yaw_quat @ z_basis
+    logging.debug(f"z_inter_1: {format_vector(z_inter_1)}")
 
     # Calculate Theta / Pitch, which is:
     # - The angle between X Prime and X Projected
@@ -737,8 +746,17 @@ def lx_decompose(matrix, basis_transform=None):
         x_proj.magnitude
     )
     logging.debug(f"pitch: {format_angle(pitch)}")
-    pitch_quat = x_prime.rotation_difference(x_proj)
+    pitch_quat = x_proj.rotation_difference(x_prime)
     logging.debug(f"pitch_quat: {format_quaternion(pitch_quat)}")
+
+    # Calculate the Second Intermediate positions, which are:
+    # - The position of the X-Y-Z Axies after the Yaw and Pitch translation
+    x_inter_2 = pitch_quat @ x_inter_1
+    logging.debug(f"x_inter_2: {format_vector(x_inter_2)}")
+    y_inter_2 = pitch_quat @ y_inter_1
+    logging.debug(f"y_inter_2: {format_vector(y_inter_2)}")
+    z_inter_2 = pitch_quat @ z_inter_1
+    logging.debug(f"z_inter_2: {format_vector(z_inter_2)}")
 
     # Calculate Z Intermediate, which is:
     # - The position of the Z Axis after the Yaw and Pitch translations
@@ -746,21 +764,32 @@ def lx_decompose(matrix, basis_transform=None):
     z_inter = pitch_quat @ z_basis
     logging.debug(f"z_inter: {format_vector(z_inter)}")
 
-    # Calculate Y Intermediate, which is:
-    # - The position of the Y Axis after the Yaw and Pitch translations
-    # - Not affected by pitch
-    y_inter = yaw_quat @ y_basis
-    logging.debug(f"y_inter: {format_vector(y_inter)}")
-
     # Calculate Phi / Roll, which is:
     # - The angle between Z Prime and Z Intermediate
+    # - The angle between (-X Prime x Z Prime) and Y Intermediate
 
-    roll_quat = z_prime.rotation_difference(z_inter)
+    roll_quat = z_inter.rotation_difference(z_prime)
     roll = roll_quat.angle
-    if roll_quat.axis.dot(x_prime) > 0:
+    if roll_quat.axis.dot(x_prime) < 0:
         roll = -roll
     logging.debug(f"roll: {format_angle(roll)}")
     logging.debug(f"roll_quat: {format_quaternion(roll_quat)}")
+
+    roll_quat_y = (y_inter_1).rotation_difference(-x_prime.cross(z_prime))
+    roll_y = roll_quat_y.angle
+    if roll_quat_y.axis.dot(x_prime) > 0:
+        roll_y = -roll_y
+    logging.debug(f"roll_y: {format_angle(roll_y)}")
+    logging.debug(f"roll_quat_y: {format_quaternion(roll_quat)}")
+
+    # Calculate the Second Intermediate positions, which are:
+    # - The position of the X-Y-Z Axies after the Yaw and Pitch translation
+    x_inter_3 = roll_quat @ x_inter_2
+    logging.debug(f"x_inter_3: {format_vector(x_inter_3)}")
+    y_inter_3 = roll_quat @ y_inter_2
+    logging.debug(f"y_inter_3: {format_vector(y_inter_3)}")
+    z_inter_3 = roll_quat @ z_inter_2
+    logging.debug(f"z_inter_3: {format_vector(z_inter_3)}")
 
     # Sanity check:
 
@@ -781,47 +810,62 @@ def lx_decompose(matrix, basis_transform=None):
     z_prime_sanity = rotation @ Z_AXIS_3D - orig_sanity
     logging.debug(f"z_prime_sanity: {format_vector(z_prime_sanity)}")
 
-    # if debug_coll:
-    #     with mode_set('OBJECT'):
-    #         for name, point in [
-    #             ("x_basis", x_basis.normalized()),
-    #             ("y_basis", y_basis.normalized()),
-    #             ("z_basis", z_basis.normalized()),
-    #             ("x_prime", x_prime.normalized()),
-    #             ("y_prime", y_prime.normalized()),
-    #             ("z_prime", z_prime.normalized()),
-    #             ("x_proj", x_proj.normalized()),
-    #             ("y_inter", y_inter.normalized()),
-    #             ("z_inter", z_inter.normalized()),
-    #             ("yaw_quat", yaw_quat.axis),
-    #             ("pitch_quat", pitch_quat.axis),
-    #             ("roll_quat", roll_quat.axis),
-    #             ("x_prime_sanity", x_prime_sanity.normalized()),
-    #             ("y_prime_sanity", y_prime_sanity.normalized()),
-    #             ("z_prime_sanity", z_prime_sanity.normalized()),
-    #         ]:
-    #             debug_verts = [
-    #                 orig,
-    #                 point + orig
-    #             ]
-    #             debug_edges = [
-    #                 (0, 1)
-    #             ]
-    #             debug_mesh = bpy.data.meshes.new(f"mesh_{name}")
-    #             debug_mesh.from_pydata(debug_verts, debug_edges, [])
-    #             debug_obj = bpy.data.objects.new(name, debug_mesh)
-    #             debug_coll.objects.link(debug_obj)
+    if debug_coll:
+        with mode_set('OBJECT'):
+            for name, point in [
+                ("x_basis", x_basis.normalized()),
+                ("y_basis", y_basis.normalized()),
+                ("z_basis", z_basis.normalized()),
+                ("x_prime", x_prime.normalized()),
+                ("y_prime", y_prime.normalized()),
+                ("z_prime", z_prime.normalized()),
+                ("x_proj", x_proj.normalized()),
+                ("x_inter_1", x_inter_1.normalized()),
+                ("y_inter_1", y_inter_1.normalized()),
+                ("z_inter_1", z_inter_1.normalized()),
+                ("x_inter_2", x_inter_2.normalized()),
+                ("y_inter_2", y_inter_2.normalized()),
+                ("z_inter_2", z_inter_2.normalized()),
+                ("x_inter_3", x_inter_3.normalized()),
+                ("y_inter_3", y_inter_3.normalized()),
+                ("z_inter_3", z_inter_3.normalized()),
+                ("z_inter", z_inter.normalized()),
+                ("yaw_quat", yaw_quat.axis),
+                ("pitch_quat", pitch_quat.axis),
+                ("roll_quat", roll_quat.axis),
+                ("x_prime_sanity", x_prime_sanity.normalized()),
+                ("y_prime_sanity", y_prime_sanity.normalized()),
+                ("z_prime_sanity", z_prime_sanity.normalized()),
+            ]:
+                debug_verts = [
+                    orig,
+                    point + orig
+                ]
+                debug_edges = [
+                    (0, 1)
+                ]
+                debug_mesh = bpy.data.meshes.new(f"mesh_{name}")
+                debug_mesh.from_pydata(debug_verts, debug_edges, [])
+                debug_obj = bpy.data.objects.new(name, debug_mesh)
+                debug_coll.objects.link(debug_obj)
 
     assert np.isclose(cos(yaw), cos(yaw_quat.angle), atol=ATOL)
     assert np.isclose(cos(pitch), cos(pitch_quat.angle), atol=ATOL)
     assert np.isclose(cos(roll), cos(roll_quat.angle), atol=ATOL)
+
+    assert all(np.isclose(x_inter_3.normalized(), x_prime_sanity.normalized(), atol=ATOL))
+    assert all(np.isclose(y_inter_3.normalized(), y_prime_sanity.normalized(), atol=ATOL))
+    assert all(np.isclose(z_inter_3.normalized(), z_prime_sanity.normalized(), atol=ATOL))
 
     assert all(np.isclose(x_prime.normalized(), x_prime_sanity.normalized(), atol=ATOL))
     # The following is not true if shear is applied
     # assert all(np.isclose(y_prime.normalized(), y_prime_sanity.normalized(), atol=ATOL))
     assert all(np.isclose(z_prime.normalized(), z_prime_sanity.normalized(), atol=ATOL))
 
-    return orig, degrees(pitch), degrees(yaw), degrees(roll)
+    angles = list(map(degrees, [yaw, pitch, roll]))
+    logging.debug(f"angles (degrees) yaw / pitch / roll: {angles}")
+
+    return (orig, *angles)
 
 
 def main():
@@ -834,10 +878,10 @@ def main():
         if not IGNORE_LAMPS:
             bpy.ops.object.delete({
                 "selected_objects": bpy.data.collections[LED_COLLECTION_NAME].all_objects})
-        # bpy.ops.object.delete({
-        #     "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
+        bpy.ops.object.delete({
+            "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
         led_coll = bpy.data.collections[LED_COLLECTION_NAME]
-        # debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
+        debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
 
     panels = []
     fixtures = []
@@ -858,22 +902,6 @@ def main():
             "class": "flavius.ledportal.LPPanelFixture",
             "parameters": {
                 "label": name,
-                # "selected": true,
-                # "enabled": false,
-                # "brightness": 1,
-                # "identify": false,
-                # "mute": false,
-                # "solo": false,
-                # "host": "127.0.0.1",
-                # "protocol": 0,
-                # "artNetUniverse": 0,
-                # "opcChannel": 0,
-                # "ddpDataOffset": 0,
-                # "kinetPort": 1,
-                # "positionMode": 0,
-                # "wiring": 0,
-                # "splitPacket": false,
-                # "pointsPerPacket": 170
             },
         }
 
@@ -922,8 +950,8 @@ def main():
 
         panel_pixel_matrix = panel_matrix @ info['transformation']
 
-        panel_loc, panel_pitch, panel_yaw, panel_roll = \
-            lx_decompose(panel_pixel_matrix)
+        panel_loc, panel_yaw, panel_pitch, panel_roll = \
+            lx_decompose(panel_pixel_matrix, debug_coll=debug_coll)
         panel['location'] = serialise_vector(panel_loc)
         fixture['parameters']['x'] = panel_loc.x
         fixture['parameters']['y'] = panel_loc.y

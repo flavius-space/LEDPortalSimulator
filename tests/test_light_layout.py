@@ -448,9 +448,31 @@ class TestLightLayout(unittest.TestCase):
         ))
         expected_translation = Vector((-1.384,  -0.235,   2.798))
         expected_angles = (
-            0,
             -54,
+            0,
             19.348
+        )
+
+        # When
+        (translation, *angles) = lx_decompose(matrix)
+
+        # Then
+        assert np.isclose(expected_translation, translation, atol=ATOL).all()
+        assert np.isclose(expected_angles, angles, atol=ATOL).all()
+
+    def test_lx_decompose_spicy(self):
+        # Given
+        matrix = Matrix((
+            (-0.014242800883948803, 0.03184732794761658, -0.026610037311911583, -1.621147871017456),
+            (-0.04383419454097748, -0.04383432865142822, -0.01933331787586212, -0.4076759517192840),
+            (-0.028485195711255074, -1.0244548320770264e-07, 0.04305611550807953, 2.62304186820983),
+            (0.0, 0.0, 0.0, 1.0)
+        ))
+        expected_translation = Vector((-1.621,  -0.408,   2.623))
+        expected_angles = (
+            -108.000,
+            31.718,
+            20.905
         )
 
         # When
