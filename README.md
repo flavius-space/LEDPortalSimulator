@@ -1,7 +1,7 @@
 # LEDPortalSimulator
 LXStudio Simulator and animations for Flavius' LED Art Installation
 
-> :warning: **This repo has been rebased onto [LXStudio-IDE](https://github.com/heronarts/LXStudio-IDE) and is deprecated by [this repo](github.com/flavius-space/ledportal-ide)**: I'm not a huge fan of the Processing editor, and have opted to continue development in a proper Java IDE. I won't be working on this repo any further, and have added a bunch of awesome new features to the [The IDE Version](github.com/flavius-space/ledportal-ide) of the repo, however the build instructions are not quite up to scratch, so if you're a Java wizard and know how to get classpaths working, I would recommend trying out the IDE version, but until then, this older repo is the easier way to get things working.
+> :warning: **This repo has been rebased onto [LXStudio-IDE](https://github.com/heronarts/LXStudio-IDE) and is deprecated by [LedPortal-IDE](github.com/flavius-space/ledportal-ide)**: I'm not a huge fan of the Processing editor, and have opted to continue development in a proper Java IDE. I won't be working on this repo any further, and have added a bunch of awesome new features to the [The IDE Version](github.com/flavius-space/ledportal-ide) of the repo, however the build instructions are not quite up to scratch, so if you're a Java wizard and know how to get classpaths working, I would recommend trying out the IDE version, but until then, this older repo is the easier way to get things working. Once build instructions are passable, I will rename this repo to LEDPortal-Utils, and it will only contain the python utilities used to generate map files.
 
 ![Demo](demo.png)
 
