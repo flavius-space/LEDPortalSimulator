@@ -9,5 +9,6 @@ application.windows64
 application.macosx
 out
 .lxproject
-*.lxp
+project.lxp
 *.log
+.project
