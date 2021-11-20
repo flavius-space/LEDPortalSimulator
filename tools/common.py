@@ -202,10 +202,15 @@ def get_selected_polygons_suffix(obj, type_plural='polygons'):
         ]
         logging.info(f"Selectable Polygons: \n{pformat(selectable)}")
 
-        selected_indices, selected_polygons = map(list, zip(*[
-            [index, polygon] for index, polygon in enumerate(obj.data.polygons)
+        polygon_enum = [
+            (index, polygon) for index, polygon in enumerate(obj.data.polygons)
             if polygon.select
-        ]))
+        ]
+        selected_indices = [
+            index for index, polygon in polygon_enum
+        ]
         suffix = f"{type_plural.upper()} " + ' '.join(map(str, selected_indices))
-        return selected_polygons, suffix
-    return obj.data.polygons, suffix
+        return polygon_enum, suffix
+    logging.info(f"collection: {obj.users_collection}")
+    logging.info(f"Selected Polygons: \n{pformat(obj.data.polygons)}")
+    return enumerate(obj.data.polygons), suffix

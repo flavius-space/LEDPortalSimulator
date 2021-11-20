@@ -10,7 +10,6 @@ TODO:
     - controller info (channel number, IP)
 """
 
-
 import imp
 import inspect
 import logging
@@ -20,12 +19,11 @@ from functools import reduce
 from itertools import starmap
 from math import ceil, copysign, floor, inf, isinf, nan, sqrt, cos, atan2, degrees
 from pprint import pformat
+import traceback
 
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
-
-from trig import gradient_cos, gradient_sin
 
 THIS_FILE = inspect.stack()[-2].filename
 THIS_DIR = os.path.dirname(THIS_FILE)
@@ -42,37 +40,45 @@ try:
         format_matrix_components, serialise_vector, format_quaternion,
         format_euler, format_vecs, format_angle, get_out_path
     )
+    from trig import gradient_cos, gradient_sin
 finally:
     sys.path = PATH
 
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
-Z_OFFSET = -0.01
 LED_COLLECTION_NAME = 'LEDs'
 DEBUG_COLLECTION_NAME = 'DEBUG'
-LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
-WIRING_SERPENTINE = True
-GRID_GRADIENT = sqrt(3)
-LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
-LED_MARGIN_VERTICAL_TOP = None
-LED_MARGIN_LEFT = None
-LED_MARGIN_RIGHT = None
+
+# LED_CONFIG = 'LedPortal'
+LED_CONFIG = 'TeleCortex'
+
+if LED_CONFIG == 'LedPortal':
+    LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
+    WIRING_SERPENTINE = True
+    GRID_GRADIENT = sqrt(3)
+    LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
+    LED_MARGIN_VERTICAL_TOP = None
+    LED_MARGIN_LEFT = None
+    LED_MARGIN_RIGHT = None
+    WIRING_REVERSE = False
+    # LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
+    LED_SPACING_VERTICAL = None
+    # Z_OFFSET = -0.1
+    Z_OFFSET = 0
+elif LED_CONFIG == 'TeleCortex':
+    LED_SPACING = 1.0 / 16
+    WIRING_SERPENTINE = True
+    LED_SPACING_VERTICAL = 1.0 / 16
+    # LED_SPACING_VERTICAL = None
+    GRID_GRADIENT = inf
+    LED_MARGIN = 0.00
+    LED_MARGIN_VERTICAL_TOP = 0.00
+    LED_MARGIN_LEFT = 0.05
+    LED_MARGIN_RIGHT = 0.05
+    WIRING_REVERSE = True
+    Z_OFFSET = 0.01
+
 IGNORE_LAMPS = False
-EXPORT_TYPE = 'PANELS'
-WIRING_REVERSE = False
-# LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
-LED_SPACING_VERTICAL = None
-
-# TeleCortex Settings
-
-# LED_SPACING = 1.0/16
-# LED_SPACING_VERTICAL = 1.0/16
-# GRID_GRADIENT = inf
-# LED_MARGIN = 0.025
-# LED_MARGIN_VERTICAL_TOP = 0.025
-# LED_MARGIN_LEFT = 0.025
-# LED_MARGIN_RIGHT = 0.025
-# WIRING_REVERSE = True
-# Z_OFFSET = 0.01
+EXPORT_TYPE = 'P'
 
 # def plot_vecs_2d(vecs):
 #     # DELET THIS
@@ -97,7 +103,7 @@ def orientation(*vecs):
     find the cross-product of these two vectors. if it is in the same direction as
     """
 
-    rotation = Matrix.Rotation(-(vecs[1]-vecs[0]).to_2d().angle_signed(X_AXIS_2D), 4, 'Z')
+    rotation = Matrix.Rotation(-(vecs[1] - vecs[0]).to_2d().angle_signed(X_AXIS_2D), 4, 'Z')
     relative = [rotation @ (vec - vecs[0]) for vec in vecs[1:]]
     logging.debug("Relative:" + ENDLTAB + ENDLTAB.join(map(format_vector, relative)))
 
@@ -110,8 +116,7 @@ def orientation(*vecs):
 
 def compose_matrix_components(components):
     logging.debug(
-        f"Matrix Components:" + ENDLTAB
-        + format_matrix_components(components))
+        f"Matrix Components:" + ENDLTAB + format_matrix_components(components))
 
     composition = reduce(lambda m, n: m @ n, [
         component_type(*component_args)
@@ -209,9 +214,9 @@ def orient_flattened_points(flattened):
     if orientation(*flattened) < 0:
         flattened = list(reversed(flattened))
         assert orientation(*flattened) >= 0, "Flattened orientation can't be -ve after reversing"
-    lengths = [(flattened[i] - flattened[(i+1) % TRI_VERTS]).magnitude for i in range(TRI_VERTS)]
+    lengths = [(flattened[i] - flattened[(i + 1) % TRI_VERTS]).magnitude for i in range(TRI_VERTS)]
     logging.debug(f"Lengths: \n{pformat(lengths)}")
-    ratios = [lengths[i]/lengths[(i+1) % TRI_VERTS] for i in range(TRI_VERTS)]
+    ratios = [lengths[i] / lengths[(i + 1) % TRI_VERTS] for i in range(TRI_VERTS)]
     logging.debug(f"Ratios: \n{pformat(ratios)}")
     equalities = [np.isclose(ratio, 1, atol=ATOL) for ratio in ratios]
     logging.debug(f"Equalities: {equalities}")
@@ -231,7 +236,7 @@ def get_normaliser(oriented):
     """
     translation = Matrix.Translation(-oriented[0]).to_4x4()
     # logging.info(f"Translation Matrix:" + ENDLTAB + format_matrix(translation))
-    angle_x = (oriented[1]-oriented[0]).to_2d().angle_signed(X_AXIS_2D)
+    angle_x = (oriented[1] - oriented[0]).to_2d().angle_signed(X_AXIS_2D)
     logging.debug(f"Angle X: {angle_x}")
     rotation = Matrix.Rotation(-angle_x, 4, 'Z')
     normaliser = rotation @ translation
@@ -519,9 +524,9 @@ def generate_lights_for_convex_polygon(
     vertical_start = margin + vertical_padding
 
     if margin_left is None:
-        margin_left = abs(margin/gradient_sin(gradient_left))
+        margin_left = abs(margin / gradient_sin(gradient_left))
     if margin_right is None:
-        margin_right = abs(margin/gradient_sin(gradient_right))
+        margin_right = abs(margin / gradient_sin(gradient_right))
     logging.debug(f"Left / Right Margin: {margin_left: 7.3f} / {margin_right: 7.3f}")
 
     horizontal_start_width = base_width \
@@ -546,10 +551,10 @@ def generate_lights_for_convex_polygon(
         logging.debug(f"Row Grid Origin X: {row_grid_origin_x: 7.3f}")
 
         row_start_relative = inf_divide(pixel_y_relative, gradient_left)
-        row_grid_start = float_abs_ceil((row_start_relative - row_grid_origin_x)/spacing)
+        row_grid_start = float_abs_ceil((row_start_relative - row_grid_origin_x) / spacing)
 
         row_end_relative = horizontal_usage + inf_divide(pixel_y_relative, gradient_right)
-        row_grid_end = float_abs_floor((row_end_relative - row_grid_origin_x)/spacing)
+        row_grid_end = float_abs_floor((row_end_relative - row_grid_origin_x) / spacing)
 
         logging.debug(
             f"Row Start / End Relative: {row_start_relative: 7.3f} / {row_end_relative: 7.3f}")
@@ -853,9 +858,12 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
     assert np.isclose(cos(pitch), cos(pitch_quat.angle), atol=ATOL)
     assert np.isclose(cos(roll), cos(roll_quat.angle), atol=ATOL)
 
-    assert all(np.isclose(x_inter_3.normalized(), x_prime_sanity.normalized(), atol=ATOL))
-    assert all(np.isclose(y_inter_3.normalized(), y_prime_sanity.normalized(), atol=ATOL))
-    assert all(np.isclose(z_inter_3.normalized(), z_prime_sanity.normalized(), atol=ATOL))
+    try:
+        assert all(np.isclose(x_inter_3.normalized(), x_prime_sanity.normalized(), atol=ATOL))
+        assert all(np.isclose(y_inter_3.normalized(), y_prime_sanity.normalized(), atol=ATOL))
+        assert all(np.isclose(z_inter_3.normalized(), z_prime_sanity.normalized(), atol=ATOL))
+    except AssertionError:
+        traceback.print_exc()
 
     assert all(np.isclose(x_prime.normalized(), x_prime_sanity.normalized(), atol=ATOL))
     # The following is not true if shear is applied
@@ -878,17 +886,19 @@ def main():
         if not IGNORE_LAMPS:
             bpy.ops.object.delete({
                 "selected_objects": bpy.data.collections[LED_COLLECTION_NAME].all_objects})
-        bpy.ops.object.delete({
-            "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
+        if DEBUG_COLLECTION_NAME in bpy.data.collections:
+            bpy.ops.object.delete({
+                "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
         led_coll = bpy.data.collections[LED_COLLECTION_NAME]
-        debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
+        # debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
+        debug_coll = None
 
     panels = []
     fixtures = []
 
-    selected_polygons, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
+    selected_polygon_enum, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
 
-    for poly_idx, polygon in enumerate(selected_polygons):
+    for poly_idx, polygon in selected_polygon_enum:
 
         name = f"{sanitise_names(obj.name)}.{EXPORT_TYPE}[{poly_idx}]"
         logging.info(f"polygon name: {name}")
@@ -899,7 +909,7 @@ def main():
 
         fixture = {
             "id": poly_idx + 1,
-            "class": "flavius.ledportal.LPPanelFixture",
+            "class": "flavius.ledportal.structure.LPPanelFixture",
             "parameters": {
                 "label": name,
             },
@@ -915,8 +925,8 @@ def main():
         vertices = [obj.data.vertices[vertex_id].co for vertex_id in polygon.vertices]
         world_vertices = [obj.matrix_world @ vertex for vertex in vertices]
         logging.debug(
-            f"Vertices (local / world):" + ENDLTAB
-            + ENDLTAB.join(starmap(format_vecs, zip(vertices, world_vertices))))
+            f"Vertices (local / world):" + ENDLTAB + ENDLTAB.join(
+                starmap(format_vecs, zip(vertices, world_vertices))))
         # TODO: Make this configurable in object properties
         vertex_rotation = 1
         world_vertices = rotate_seq(world_vertices, vertex_rotation)
