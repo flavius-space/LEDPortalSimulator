@@ -1,4 +1,5 @@
 # LEDPortalSimulator
+
 LXStudio Simulator and animations for Flavius' LED Art Installation
 
 > :warning: **This repo has been rebased onto [LXStudio-IDE](https://github.com/heronarts/LXStudio-IDE) and is deprecated by [LedPortal-IDE](github.com/flavius-space/ledportal-ide)**: I'm not a huge fan of the Processing editor, and have opted to continue development in a proper Java IDE. I won't be working on this repo any further, and have added a bunch of awesome new features to the [The IDE Version](github.com/flavius-space/ledportal-ide) of the repo, however the build instructions are not quite up to scratch, so if you're a Java wizard and know how to get classpaths working, I would recommend trying out the IDE version, but until then, this older repo is the easier way to get things working. Once build instructions are passable, I will rename this repo to LEDPortal-Utils, and it will only contain the python utilities used to generate map files.
@@ -7,15 +8,8 @@ LXStudio Simulator and animations for Flavius' LED Art Installation
 
 ## Repo Structure
 
-- **LEDPortalSimulator** - a Processing sketch which wraps around
-  [LXStudio](https://github.com/heronarts/LXStudio) to control how patterns are sent to the LEDs
-  - **code** - compiled library files
-  - **data** - LED / stucture layout and config definitions, assets used in animations
-  - **LEDPortalSimulator.pde** - Start here
-  - **Pattern_\*.pde** - LED Pattern definitions. Contribute animations using this convention
-  - **UI.pde** - Components to extend the LXStudio UI
-  - **Model.pde** - Keeps track of pixel positions
-  - **project.lxp** - LXStudio project state file
+- **LEDPortalSimulator**
+  - **data** - LED / stucture layout and config definitions
 - **tools** - Python utility scripts that mostly interface with Blender
   - **light_layout.py** - Generates a set of lights for all selected polygons in the currently
   selected mesh group. Outputs lights to JSON for easy import. Optionally places lights in the
@@ -23,27 +17,6 @@ LXStudio Simulator and animations for Flavius' LED Art Installation
   - **export_structure.py** - Converts the selected Blender mesh into JSON format, so that it can
   be displayed along with the LEDs in LXStudio
 - **tests** - Tests for Python Utilities
-
-## LED Portal Simulator Processing Sketch
-
-### Prerequisites
-
-- Install [Processing](https://processing.org/)
-- Install Processing Video library: ** Sketch → Import Library → Add Library... **
-
-### Usage
-
-Open `LEDPortalSimulator` in Processing
-
-on macos:
-
-```bash
-open -a Processing LEDPortalSimulator/LEDPortalSimulator.pde
-```
-
-if u want steamed hams, just open (cmd-O) the  `LEDPortalSimulator/presets/movieFrame.lxp` preset.
-
-![Steamed Domes](steamed%20domes.gif)
 
 ## Python Utility Scripts (`tools`)
 
