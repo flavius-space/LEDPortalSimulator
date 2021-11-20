@@ -17,7 +17,7 @@ import os
 import sys
 from functools import reduce
 from itertools import starmap
-from math import ceil, copysign, floor, inf, isinf, nan, sqrt, cos, atan2, degrees
+from math import ceil, copysign, floor, inf, isinf, nan, pi, sin, sqrt, cos, atan2, degrees
 from pprint import pformat
 import traceback
 
@@ -44,9 +44,37 @@ try:
 finally:
     sys.path = PATH
 
+# Defaults
+
 LOG_FILE = os.path.splitext(os.path.basename(THIS_FILE))[0] + '.log'
 LED_COLLECTION_NAME = 'LEDs'
 DEBUG_COLLECTION_NAME = 'DEBUG'
+# TODO: Make this configurable in object properties
+VERTEX_ROTATION = 1
+VERTEX_ROTATION_OVERRIDE = {}
+LED_SPACING = 1.0
+LED_MARGIN_VERTICAL_TOP = None
+LED_MARGIN_LEFT = None
+LED_MARGIN_RIGHT = None
+LED_SPACING_VERTICAL = None
+IGNORE_LAMPS = False
+
+
+# Makex axes in blender match LX
+# COORDINATE_TRANSFORM = Matrix([
+#     [1, 0, 0, 0],
+#     [0, 1, 0, 0],
+#     [0, 0, 1, 0],
+#     [0, 0, 0, 1],
+# ])
+
+# Use processing axes
+COORDINATE_TRANSFORM = Matrix([
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [1, 0, 0, 0],
+    [0, 0, 0, 1]
+])
 
 # LED_CONFIG = 'LedPortal'
 LED_CONFIG = 'TeleCortex'
@@ -56,12 +84,8 @@ if LED_CONFIG == 'LedPortal':
     WIRING_SERPENTINE = True
     GRID_GRADIENT = sqrt(3)
     LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
-    LED_MARGIN_VERTICAL_TOP = None
-    LED_MARGIN_LEFT = None
-    LED_MARGIN_RIGHT = None
     WIRING_REVERSE = False
     # LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
-    LED_SPACING_VERTICAL = None
     # Z_OFFSET = -0.1
     Z_OFFSET = 0
 elif LED_CONFIG == 'TeleCortex':
@@ -70,24 +94,93 @@ elif LED_CONFIG == 'TeleCortex':
     LED_SPACING_VERTICAL = 1.0 / 16
     # LED_SPACING_VERTICAL = None
     GRID_GRADIENT = inf
-    LED_MARGIN = 0.00
+    LED_MARGIN = 0.03
     LED_MARGIN_VERTICAL_TOP = 0.00
-    LED_MARGIN_LEFT = 0.05
-    LED_MARGIN_RIGHT = 0.05
+    LED_MARGIN_LEFT = 0.03
+    LED_MARGIN_RIGHT = 0.03
     WIRING_REVERSE = True
-    Z_OFFSET = 0.01
+    Z_OFFSET = -0.02
 
-IGNORE_LAMPS = False
-EXPORT_TYPE = 'P'
+# telecortex "back" config (2 small pentagons joined by 2 larges)
+TELE_POINTS_BIG = [[13, 23], [13, 22], [12, 21], [13, 21], [14, 21], [14, 20], [13, 20], [12, 20], [11, 19], [12, 19], [13, 19], [14, 19], [15, 19], [15, 18], [14, 18], [13, 18], [12, 18], [11, 18], [10, 17], [11, 17], [12, 17], [13, 17], [14, 17], [15, 17], [16, 17], [16, 16], [15, 16], [14, 16], [13, 16], [12, 16], [11, 16], [10, 16], [9, 15], [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15], [16, 15], [17, 15], [18, 14], [17, 14], [16, 14], [15, 14], [14, 14], [13, 14], [12, 14], [11, 14], [10, 14], [9, 14], [8, 14], [8, 13], [9, 13], [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13], [16, 13], [17, 13], [18, 13], [19, 12], [18, 12], [17, 12], [16, 12], [15, 12], [14, 12], [13, 12], [12, 12], [11, 12], [10, 12], [9, 12], [8, 12], [7, 12], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [17, 11], [18, 11], [19, 11], [20, 10], [19, 10], [18, 10], [17, 10], [16, 10], [15, 10], [14, 10], [13, 10], [12, 10], [11, 10], [10, 10], [9, 10], [8, 10], [7, 10], [6, 10], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [15, 9], [16, 9], [17, 9], [18, 9], [19, 9], [20, 9], [21, 8], [20, 8], [19, 8], [18, 8], [17, 8], [16, 8], [15, 8], [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8], [8, 8], [7, 8], [6, 8], [5, 8], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [19, 7], [20, 7], [21, 7], [22, 7], [22, 6], [21, 6], [20, 6], [19, 6], [18, 6], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [5, 6], [4, 6], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [18, 5], [19, 5], [20, 5], [21, 5], [22, 5], [23, 5], [23, 4], [22, 4], [21, 4], [20, 4], [19, 4], [18, 4], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [5, 4], [4, 4], [3, 4], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [15, 3], [16, 3], [17, 3], [18, 3], [19, 3], [20, 3], [21, 3], [22, 3], [23, 3], [24, 3], [25, 2], [24, 2], [23, 2], [22, 2], [21, 2], [20, 2], [19, 2], [18, 2], [17, 2], [16, 2], [15, 2], [14, 2], [13, 2], [12, 2], [11, 2], [10, 2], [9, 2], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2], [3, 2], [2, 2], [1, 2], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1], [16, 1], [17, 1], [18, 1], [19, 1], [20, 1], [21, 1], [22, 1], [23, 1], [24, 1], [25, 1], [26, 0], [25, 0], [24, 0], [23, 0], [22, 0], [21, 0], [20, 0], [19, 0], [18, 0], [17, 0], [16, 0], [15, 0], [14, 0], [13, 0], [12, 0], [11, 0], [10, 0], [9, 0], [8, 0], [7, 0], [6, 0], [5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0]]  # noqa
+TELE_POINTS_SMALL = [[13, 19], [13, 18], [12, 17], [13, 17], [14, 17], [14, 16], [13, 16], [12, 16], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15], [16, 14], [15, 14], [14, 14], [13, 14], [12, 14], [11, 14], [10, 14], [9, 13], [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13], [16, 13], [17, 13], [17, 12], [16, 12], [15, 12], [14, 12], [13, 12], [12, 12], [11, 12], [10, 12], [9, 12], [8, 11], [9, 11], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [17, 11], [18, 11], [19, 10], [18, 10], [17, 10], [16, 10], [15, 10], [14, 10], [13, 10], [12, 10], [11, 10], [10, 10], [9, 10], [8, 10], [7, 10], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [15, 9], [16, 9], [17, 9], [18, 9], [19, 9], [20, 8], [19, 8], [18, 8], [17, 8], [16, 8], [15, 8], [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8], [8, 8], [7, 8], [6, 8], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [19, 7], [20, 7], [21, 7], [21, 6], [20, 6], [19, 6], [18, 6], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [5, 6], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [18, 5], [19, 5], [20, 5], [21, 5], [22, 5], [23, 4], [22, 4], [21, 4], [20, 4], [19, 4], [18, 4], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [5, 4], [4, 4], [3, 4], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [15, 3], [16, 3], [17, 3], [18, 3], [19, 3], [20, 3], [21, 3], [22, 3], [23, 3], [24, 2], [23, 2], [22, 2], [21, 2], [20, 2], [19, 2], [18, 2], [17, 2], [16, 2], [15, 2], [14, 2], [13, 2], [12, 2], [11, 2], [10, 2], [9, 2], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2], [3, 2], [2, 2], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1], [16, 1], [17, 1], [18, 1], [19, 1], [20, 1], [21, 1], [22, 1], [23, 1], [24, 1], [25, 1], [26, 0], [25, 0], [24, 0], [23, 0], [22, 0], [21, 0], [20, 0], [19, 0], [18, 0], [17, 0], [16, 0], [15, 0], [14, 0], [13, 0], [12, 0], [11, 0], [10, 0], [9, 0], [8, 0], [7, 0], [6, 0], [5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0]]  # noqa
+EXPORT_TYPE = 'PBAK'
+PIX_WIDTH = 26
+PIX_MID = PIX_WIDTH // 2
+BIG_HEIGHT = 23
+BIG_ANGLE = atan2(BIG_HEIGHT, PIX_MID)
+BIG_SIN = sin(BIG_ANGLE)
+BIG_COS = cos(BIG_ANGLE)
+SMALL_HEIGHT = 19
+SMALL_ANGLE = atan2(SMALL_HEIGHT, PIX_MID)
+SMALL_SIN = sin(SMALL_ANGLE)
+SMALL_COS = cos(SMALL_ANGLE)
+# side length of inner small panel in global pixel coords
+INNERSIDE = 22
+# INNERSIDE = 0
+# Y_CLEARANCE = BIG_HEIGHT * 2 + 1
+Y_CLEARANCE = 0
 
-# def plot_vecs_2d(vecs):
-#     # DELET THIS
-#     return
-#     vecs = [vec.to_2d() for vec in vecs]
-#     logging.info(f"plotting:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs)))
-#     import matplotlib.pyplot as plt
-#     plt.plot(*zip(*vecs + [(0, 0)]), 'o-')
-#     plt.show()
+SRU_ANGLE = pi - SMALL_ANGLE
+OVERRIDES = {
+    1: {'fixture': {'label': 'SRU'},
+        "grid_origin": [
+            -1,
+            Y_CLEARANCE + 1],
+        "grid_matrix": [
+            [cos(SRU_ANGLE), -sin(SRU_ANGLE)],
+            [sin(SRU_ANGLE), cos(SRU_ANGLE)]],
+        'pixels': TELE_POINTS_SMALL},
+    2: {'fixture': {'label': 'SLIU'}, 'pixels': TELE_POINTS_SMALL},
+    10: {'fixture': {'label': 'SLU'}, 'pixels': TELE_POINTS_SMALL},
+    12: {'fixture': {'label': 'BU'},
+         "grid_origin": [  #
+             PIX_MID * 2 + 1,  #
+             Y_CLEARANCE + (BIG_HEIGHT * 2) + 1],
+         "grid_matrix": [[-2, 0], [0, -2]],
+         'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
+    13: {'fixture': {'label': 'SRIU'}, 'pixels': TELE_POINTS_SMALL},
+    25: {'fixture': {'label': 'SLO'},
+         "grid_origin": [  #
+             -(INNERSIDE + SMALL_HEIGHT),  #
+             Y_CLEARANCE + (PIX_MID * 2)],
+         "grid_matrix": [[0, 1], [-2, 0]],
+         'pixels': TELE_POINTS_SMALL},
+    26: {'fixture': {'label': 'SLID'}, 'pixels': TELE_POINTS_SMALL},
+    27: {'fixture': {'label': 'BD'},
+         "grid_origin": [  #
+             -PIX_MID * 2,  #
+             Y_CLEARANCE - (BIG_HEIGHT * 2) - 1],
+         "grid_matrix": [[2, 0], [0, 2]],
+         'pixels': TELE_POINTS_BIG},
+    28: {'fixture': {'label': 'SRID'}, 'pixels': TELE_POINTS_SMALL},
+    29: {'fixture': {'label': 'SRO'},
+         "grid_origin": [  #
+             INNERSIDE + SMALL_HEIGHT,  #
+             Y_CLEARANCE - (PIX_MID * 2)],
+         "grid_matrix": [[0, -1], [2, 0]],
+         'pixels': TELE_POINTS_SMALL},
+    36: {'fixture': {'label': 'SLD'}, 'pixels': TELE_POINTS_SMALL},
+    37: {'fixture': {'label': 'SRD'}, 'pixels': TELE_POINTS_SMALL},
+}
+
+# DELETEME
+# EXPORT_TYPE = 'PMIN'
+# LED_SPACING = 1.0 / 4
+# LED_SPACING_VERTICAL = None
+# LED_MARGIN = 0.05
+# LED_MARGIN_LEFT = None
+# LED_MARGIN_RIGHT = None
+# LED_MARGIN_VERTICAL_TOP = None
+
+
+def plot_vecs_2d(vecs):
+    logging.info(f"plotting: " + str(vecs))
+    # vecs = [vec.to_2d() for vec in vecs]
+    # logging.info(f"plotting:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs)))
+    import matplotlib.pyplot as plt
+    plt.plot(*zip(*(vecs + [(0, 0)])), 'o-')
+    plt.show()
 
 
 def orientation(*vecs):
@@ -876,12 +969,26 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
     return (orig, *angles)
 
 
+def transform_grid_pixels(pixels, grid_origin, grid_matrix):
+    return [
+        [
+            grid_origin[0] + (grid_matrix[0][0] * pixel[0]) + (grid_matrix[0][1] * pixel[1]),
+            grid_origin[1] + (grid_matrix[1][0] * pixel[0]) + (grid_matrix[1][1] * pixel[1]),
+        ]
+        for pixel in pixels
+    ]
+
+
 def main():
     setup_logger(LOG_FILE)
+
     logging.info(f"*** Starting Light Layout ***")
     obj = bpy.context.object
     logging.info(f"Selected object: {obj.name}")
     logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
+    inv_coordinate_transform = COORDINATE_TRANSFORM.inverted()
+    world_matrix = COORDINATE_TRANSFORM @ obj.matrix_world
+    logging.debug(f"Transformed World Matrix:" + ENDLTAB + format_matrix(world_matrix))
     with mode_set('OBJECT'):
         if not IGNORE_LAMPS:
             bpy.ops.object.delete({
@@ -898,7 +1005,12 @@ def main():
 
     selected_polygon_enum, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
 
+    ALL_GRID_PIXELS = []
+
     for poly_idx, polygon in selected_polygon_enum:
+
+        poly_overrides = OVERRIDES.get(poly_idx, {})
+        poly_fix_overrides = poly_overrides.get('fixture', {})
 
         name = f"{sanitise_names(obj.name)}.{EXPORT_TYPE}[{poly_idx}]"
         logging.info(f"polygon name: {name}")
@@ -915,20 +1027,24 @@ def main():
             },
         }
 
-        world_center = obj.matrix_world @ polygon.center
+        world_center = world_matrix @ polygon.center
         logging.debug(
             f"Center (local / world):" + ENDLTAB + format_vecs(polygon.center, world_center))
-        world_normal = (obj.matrix_world @ polygon.normal) - (obj.matrix_world @ ORIGIN_3D)
+        world_normal = (world_matrix @ polygon.normal) - (world_matrix @ ORIGIN_3D)
         logging.debug(
             f"Normal (local / world):" + ENDLTAB + format_vecs(polygon.normal, world_normal))
         logging.debug(f"Vertex IDs:" + ENDLTAB + pformat(list(polygon.vertices)))
         vertices = [obj.data.vertices[vertex_id].co for vertex_id in polygon.vertices]
-        world_vertices = [obj.matrix_world @ vertex for vertex in vertices]
+        world_vertices = [world_matrix @ vertex for vertex in vertices]
         logging.debug(
             f"Vertices (local / world):" + ENDLTAB + ENDLTAB.join(
                 starmap(format_vecs, zip(vertices, world_vertices))))
-        # TODO: Make this configurable in object properties
-        vertex_rotation = 1
+
+        vertex_rotation = VERTEX_ROTATION
+        if 'vertex_rotation' in poly_overrides:
+            logging.debug(f"overriding vertex_rotation ({vertex_rotation})")
+            vertex_rotation = poly_overrides['vertex_rotation']
+
         world_vertices = rotate_seq(world_vertices, vertex_rotation)
 
         panel_matrix, panel_vertices = normalise_plane(
@@ -953,6 +1069,23 @@ def main():
             z_offset=Z_OFFSET,
         )
 
+        if 'pixels' in poly_overrides:
+            logging.debug(f"overriding pixels ({pixels})")
+            pixels = poly_overrides['pixels']
+
+        grid_origin = [0, 0]
+        if 'grid_origin' in poly_overrides:
+            logging.debug(f"overriding grid_origin ({grid_origin})")
+            grid_origin = poly_overrides['grid_origin']
+
+        grid_matrix = [[1, 0], [0, 1]]
+        if 'grid_matrix' in poly_overrides:
+            logging.debug(f"overriding grid_matrix ({grid_matrix})")
+            grid_matrix = poly_overrides['grid_matrix']
+
+        grid_pixels = transform_grid_pixels(pixels, grid_origin, grid_matrix)
+        ALL_GRID_PIXELS.extend(grid_pixels)
+
         panel['spacing'] = info['spacing']
         fixture['parameters']['rowSpacing'] = info['spacing'][0]
         fixture['parameters']['columnSpacing'] = info['spacing'][1]
@@ -976,6 +1109,10 @@ def main():
         panel['matrix'] = serialise_matrix(panel_pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
         fixture['parameters']['pointIndicesJSON'] = repr(serialise_matrix(pixels)).replace(' ', '')
+        fixture['parameters']['globalGridMatrix'] = repr(
+            serialise_matrix(grid_matrix)).replace(' ', '')
+        fixture['parameters']['globalGridOriginX'] = grid_origin[0]
+        fixture['parameters']['globalGridOriginY'] = grid_origin[1]
 
         panel_pixel_vertices = [
             info['inv_transformation'] @ vertex for vertex in panel_vertices
@@ -983,6 +1120,8 @@ def main():
         panel['vertices'] = serialise_matrix(panel_pixel_vertices)
 
         panels.append(panel)
+
+        fixture['parameters'].update(poly_fix_overrides)
         fixtures.append(fixture)
 
         if IGNORE_LAMPS:
@@ -999,7 +1138,7 @@ def main():
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
             norm_position = info['transformation'] @ Vector((position[0], position[1], 0))
             logging.debug('\t' + format_vector(norm_position))
-            lamp_object.location = panel_matrix @ norm_position
+            lamp_object.location = inv_coordinate_transform @ panel_matrix @ norm_position
             led_coll.objects.link(lamp_object)
 
     logging.info(f"exporting {len(panels)} {EXPORT_TYPE.lower()}")
@@ -1007,6 +1146,8 @@ def main():
     export_json(get_out_path(obj, suffix, 'lxm'), {'fixtures': fixtures})
 
     logging.info(f"*** Completed Light Layout ***")
+
+    plot_vecs_2d(ALL_GRID_PIXELS)
 
 
 if __name__ == '__main__':
