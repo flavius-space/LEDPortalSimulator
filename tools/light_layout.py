@@ -17,9 +17,10 @@ import os
 import sys
 from functools import reduce
 from itertools import starmap
-from math import ceil, copysign, floor, inf, isinf, nan, pi, sin, sqrt, cos, atan2, degrees
+from math import acos, asin, ceil, copysign, floor, inf, isinf, nan, pi, sin, sqrt, cos, atan2, degrees
 from pprint import pformat
 import traceback
+import shutil
 
 import bpy
 import numpy as np
@@ -57,8 +58,8 @@ LED_MARGIN_VERTICAL_TOP = None
 LED_MARGIN_LEFT = None
 LED_MARGIN_RIGHT = None
 LED_SPACING_VERTICAL = None
+EXPORT_TYPE = 'P'
 IGNORE_LAMPS = False
-
 
 # Makex axes in blender match LX
 # COORDINATE_TRANSFORM = Matrix([
@@ -101,117 +102,317 @@ elif LED_CONFIG == 'TeleCortex':
     WIRING_REVERSE = True
     Z_OFFSET = -0.02
 
-# telecortex "back" config (2 small pentagons joined by 2 larges)
+
+# Telecortex Pixel positions
+
 TELE_POINTS_BIG = [[13, 23], [13, 22], [12, 21], [13, 21], [14, 21], [14, 20], [13, 20], [12, 20], [11, 19], [12, 19], [13, 19], [14, 19], [15, 19], [15, 18], [14, 18], [13, 18], [12, 18], [11, 18], [10, 17], [11, 17], [12, 17], [13, 17], [14, 17], [15, 17], [16, 17], [16, 16], [15, 16], [14, 16], [13, 16], [12, 16], [11, 16], [10, 16], [9, 15], [10, 15], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15], [16, 15], [17, 15], [18, 14], [17, 14], [16, 14], [15, 14], [14, 14], [13, 14], [12, 14], [11, 14], [10, 14], [9, 14], [8, 14], [8, 13], [9, 13], [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13], [16, 13], [17, 13], [18, 13], [19, 12], [18, 12], [17, 12], [16, 12], [15, 12], [14, 12], [13, 12], [12, 12], [11, 12], [10, 12], [9, 12], [8, 12], [7, 12], [7, 11], [8, 11], [9, 11], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [17, 11], [18, 11], [19, 11], [20, 10], [19, 10], [18, 10], [17, 10], [16, 10], [15, 10], [14, 10], [13, 10], [12, 10], [11, 10], [10, 10], [9, 10], [8, 10], [7, 10], [6, 10], [6, 9], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [15, 9], [16, 9], [17, 9], [18, 9], [19, 9], [20, 9], [21, 8], [20, 8], [19, 8], [18, 8], [17, 8], [16, 8], [15, 8], [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8], [8, 8], [7, 8], [6, 8], [5, 8], [4, 7], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [19, 7], [20, 7], [21, 7], [22, 7], [22, 6], [21, 6], [20, 6], [19, 6], [18, 6], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [5, 6], [4, 6], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [18, 5], [19, 5], [20, 5], [21, 5], [22, 5], [23, 5], [23, 4], [22, 4], [21, 4], [20, 4], [19, 4], [18, 4], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [5, 4], [4, 4], [3, 4], [2, 3], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [15, 3], [16, 3], [17, 3], [18, 3], [19, 3], [20, 3], [21, 3], [22, 3], [23, 3], [24, 3], [25, 2], [24, 2], [23, 2], [22, 2], [21, 2], [20, 2], [19, 2], [18, 2], [17, 2], [16, 2], [15, 2], [14, 2], [13, 2], [12, 2], [11, 2], [10, 2], [9, 2], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2], [3, 2], [2, 2], [1, 2], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1], [16, 1], [17, 1], [18, 1], [19, 1], [20, 1], [21, 1], [22, 1], [23, 1], [24, 1], [25, 1], [26, 0], [25, 0], [24, 0], [23, 0], [22, 0], [21, 0], [20, 0], [19, 0], [18, 0], [17, 0], [16, 0], [15, 0], [14, 0], [13, 0], [12, 0], [11, 0], [10, 0], [9, 0], [8, 0], [7, 0], [6, 0], [5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0]]  # noqa
 TELE_POINTS_SMALL = [[13, 19], [13, 18], [12, 17], [13, 17], [14, 17], [14, 16], [13, 16], [12, 16], [11, 15], [12, 15], [13, 15], [14, 15], [15, 15], [16, 14], [15, 14], [14, 14], [13, 14], [12, 14], [11, 14], [10, 14], [9, 13], [10, 13], [11, 13], [12, 13], [13, 13], [14, 13], [15, 13], [16, 13], [17, 13], [17, 12], [16, 12], [15, 12], [14, 12], [13, 12], [12, 12], [11, 12], [10, 12], [9, 12], [8, 11], [9, 11], [10, 11], [11, 11], [12, 11], [13, 11], [14, 11], [15, 11], [16, 11], [17, 11], [18, 11], [19, 10], [18, 10], [17, 10], [16, 10], [15, 10], [14, 10], [13, 10], [12, 10], [11, 10], [10, 10], [9, 10], [8, 10], [7, 10], [7, 9], [8, 9], [9, 9], [10, 9], [11, 9], [12, 9], [13, 9], [14, 9], [15, 9], [16, 9], [17, 9], [18, 9], [19, 9], [20, 8], [19, 8], [18, 8], [17, 8], [16, 8], [15, 8], [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8], [8, 8], [7, 8], [6, 8], [5, 7], [6, 7], [7, 7], [8, 7], [9, 7], [10, 7], [11, 7], [12, 7], [13, 7], [14, 7], [15, 7], [16, 7], [17, 7], [18, 7], [19, 7], [20, 7], [21, 7], [21, 6], [20, 6], [19, 6], [18, 6], [17, 6], [16, 6], [15, 6], [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6], [8, 6], [7, 6], [6, 6], [5, 6], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [10, 5], [11, 5], [12, 5], [13, 5], [14, 5], [15, 5], [16, 5], [17, 5], [18, 5], [19, 5], [20, 5], [21, 5], [22, 5], [23, 4], [22, 4], [21, 4], [20, 4], [19, 4], [18, 4], [17, 4], [16, 4], [15, 4], [14, 4], [13, 4], [12, 4], [11, 4], [10, 4], [9, 4], [8, 4], [7, 4], [6, 4], [5, 4], [4, 4], [3, 4], [3, 3], [4, 3], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3], [10, 3], [11, 3], [12, 3], [13, 3], [14, 3], [15, 3], [16, 3], [17, 3], [18, 3], [19, 3], [20, 3], [21, 3], [22, 3], [23, 3], [24, 2], [23, 2], [22, 2], [21, 2], [20, 2], [19, 2], [18, 2], [17, 2], [16, 2], [15, 2], [14, 2], [13, 2], [12, 2], [11, 2], [10, 2], [9, 2], [8, 2], [7, 2], [6, 2], [5, 2], [4, 2], [3, 2], [2, 2], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1], [8, 1], [9, 1], [10, 1], [11, 1], [12, 1], [13, 1], [14, 1], [15, 1], [16, 1], [17, 1], [18, 1], [19, 1], [20, 1], [21, 1], [22, 1], [23, 1], [24, 1], [25, 1], [26, 0], [25, 0], [24, 0], [23, 0], [22, 0], [21, 0], [20, 0], [19, 0], [18, 0], [17, 0], [16, 0], [15, 0], [14, 0], [13, 0], [12, 0], [11, 0], [10, 0], [9, 0], [8, 0], [7, 0], [6, 0], [5, 0], [4, 0], [3, 0], [2, 0], [1, 0], [0, 0]]  # noqa
-EXPORT_TYPE = 'PBAK'
-PIX_WIDTH = 26
-PIX_MID = PIX_WIDTH // 2
-BIG_HEIGHT = 23
-BIG_ANGLE = atan2(BIG_HEIGHT, PIX_MID)
-BIG_SIN = sin(BIG_ANGLE)
-BIG_COS = cos(BIG_ANGLE)
-SMALL_HEIGHT = 19
-SMALL_ANGLE = atan2(SMALL_HEIGHT, PIX_MID)
-SMALL_SIN = sin(SMALL_ANGLE)
-SMALL_COS = cos(SMALL_ANGLE)
-# side length of inner small panel in global pixel coords
-INNERSIDE = 22
-# INNERSIDE = 0
-# Y_CLEARANCE = BIG_HEIGHT * 2 + 1
-Y_CLEARANCE = 0
 
-SRU_ANGLE = pi - SMALL_ANGLE
-
-# Overrides parameters for all fixtures
 OVERRIDES = {
     "fixture": {
         "port": 42069,
         "protocol": 3
     }
 }
-# Override parameters by polygon idx
-POLY_OVERRIDES = {
-    1: {'fixture': {
-        'label': 'SRU',
-        'host': 'quiet-hill',
-        'opcChannel': 1},
+
+##########################
+# TELECORTEX BACK LAYOUT #
+##########################
+
+# This layout consists of 10 small panels and 2 large panels.
+# The small panels are arranged in 2 pentagons, bridged by the big panels.
+#
+# We hand craft the transformations to stitch these panels together in the
+# smallest possible quantization grid that attempts to avoid two pixels being mapped to the
+# same point.
+#
+# When creating these transformations, it's important to avoid non-right angle
+# rotations and non-integer scale / skews wherever possible.
+
+# Panel Naming:
+#          /\``````/\
+# .----```/  \ BU /  \```----.
+# |`\.SLU/SLIU\  /SRIU\SRU./ |
+# |SLO`\/      \/      \/ SRO|
+# |   ./\``````/\``````/\.   |
+# |./`SLD\SLID/  \SRID/SRD`\.|
+# `----___\  / BD \  /___----`
+#          \/______\/
+#
+# Codes:
+# - S|B = small / big
+# - L|R = left or right pentagon
+# - I = inner (close to center of mapping)
+# - U|D = up or down
+# -> labels, controller info and rotations
+
+
+def get_back_overrides():
+    POLY_OVERRIDES = {
+        1: {'fixture': {
+            'label': 'SRU 1',
+            'host': 'quiet-hill',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        2: {'fixture': {
+            'label': 'SLIU 2',
+            'host': 'lingering-brook',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        10: {'fixture': {
+            'label': 'SLU 10',
+            'host': 'still-brook',
+            'opcChannel': 0},
+            'pixels': TELE_POINTS_SMALL},
+        12: {'fixture': {
+            'label': 'BU 12',
+            'host': 'lingering-brook',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
+        13: {'fixture': {
+            'label': 'SRIU 13',
+            'host': 'quiet-hill',
+            'opcChannel': 0},
+            'pixels': TELE_POINTS_SMALL},
+        25: {'fixture': {
+            'label': 'SLO 25',
+            'host': 'still-brook',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        26: {'fixture': {
+            'label': 'SLID 26',
+            'host': 'still-brook',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        27: {'fixture': {
+            'label': 'BD 27',
+            'host': 'lingering-brook',
+            'opcChannel': 2},
+            'pixels': TELE_POINTS_BIG},
+        28: {'fixture': {
+            'label': 'SRID 28',
+            'host': 'lingering-brook',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        29: {'fixture': {
+            'label': 'SRO 29'},
+            'pixels': TELE_POINTS_SMALL},
+        # TODO: what controller is this?
+        36: {'fixture': {
+            'label': 'SLD 36',
+            'host': 'still-brook',
+            'opcChannel': 2},
+            'pixels': TELE_POINTS_SMALL},
+        37: {'fixture': {
+            'label': 'SRD 37',
+            'host': 'quiet-hill',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+    }
+
+    # -> GEOMETRY
+
+    PIX_WIDTH = 26
+    PIX_MID = PIX_WIDTH // 2
+    BIG_HEIGHT = 23
+    BIG_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
+    BIG_ANGLE = atan2(BIG_HEIGHT, PIX_MID)
+    BIG_SIN = sin(BIG_ANGLE)
+    BIG_COS = cos(BIG_ANGLE)
+    SMALL_HEIGHT = 19
+    SMALL_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
+    SMALL_ANGLE = atan2(SMALL_HEIGHT, PIX_MID)
+    SMALL_SIN = sin(SMALL_ANGLE)
+    SMALL_COS = cos(SMALL_ANGLE)
+    # The midpoint height of a unit pentagon (all vertices unit from origin)
+    UNIT_PENT_MID_HEIGHT = acos(2 * pi / 10)
+    # The side length of a unit pentagon
+    UNIT_PENT_SIDE = 2 * asin(2 * pi / 10)
+    # The midpoint height of a pentagon with side length = PIX_WIDTH
+
+    # side length of inner small panel in global pixel coords
+    INNERSIDE = 22
+    # INNERSIDE = 0
+
+    # -> BIG PANELS (BU and BD)
+    # these panels' normals are the most orthogonal to the internal grid camera, and
+    # so their mapping is a simple scale up by 2. This means that there are extra
+    # rows for pixels from other panels that have more squished transforms to use.
+
+    BIG_SCALE = 2
+
+    # --> BU
+    POLY_OVERRIDES[12].update({
         "grid_origin": [
-            -1,
-            Y_CLEARANCE + 1],
-        "grid_matrix": [
-            [cos(SRU_ANGLE), -sin(SRU_ANGLE)],
-            [sin(SRU_ANGLE), cos(SRU_ANGLE)]],
-        'pixels': TELE_POINTS_SMALL},
-    2: {'fixture': {
-        'label': 'SLIU',
-        'host': 'lingering-brook',
-        'opcChannel': 1},
-        'pixels': TELE_POINTS_SMALL},
-    10: {'fixture': {
-        'label': 'SLU',
-        'host': 'still-brook',
-        'opcChannel': 0},
-        'pixels': TELE_POINTS_SMALL},
-    12: {'fixture': {
-         'label': 'BU',
-         'host': 'lingering-brook',
-         'opcChannel': 1},
-         "grid_origin": [  #
-             PIX_MID * 2 + 1,  #
-             Y_CLEARANCE + (BIG_HEIGHT * 2) + 1],
-         "grid_matrix": [[-2, 0], [0, -2]],
-         'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
-    13: {'fixture': {
-        'label': 'SRIU',
-        'host': 'quiet-hill',
-        'opcChannel': 0},
-        'pixels': TELE_POINTS_SMALL},
-    25: {'fixture': {
-         'label': 'SLO',
-         'host': 'still-brook',
-         'opcChannel': 1},
-         "grid_origin": [  #
-             -(INNERSIDE + SMALL_HEIGHT),  #
-             Y_CLEARANCE + (PIX_MID * 2)],
-         "grid_matrix": [[0, 1], [-2, 0]],
-         'pixels': TELE_POINTS_SMALL},
-    26: {'fixture': {
-        'label': 'SLID',
-        'host': 'still-brook',
-        'opcChannel': 3},
-        'pixels': TELE_POINTS_SMALL},
-    27: {'fixture': {
-         'label': 'BD',
-         'host': 'lingering-brook',
-         'opcChannel': 2},
-         "grid_origin": [  #
-             -PIX_MID * 2,  #
-             Y_CLEARANCE - (BIG_HEIGHT * 2) - 1],
-         "grid_matrix": [[2, 0], [0, 2]],
-         'pixels': TELE_POINTS_BIG},
-    28: {'fixture': {
-        'label': 'SRID',
-        'host': 'lingering-brook',
-        'opcChannel': 3},
-        'pixels': TELE_POINTS_SMALL},
-    29: {'fixture': {'label': 'SRO'},
-         "grid_origin": [  #
-             INNERSIDE + SMALL_HEIGHT,  #
-             Y_CLEARANCE - (PIX_MID * 2)],
-         "grid_matrix": [[0, -1], [2, 0]],
-         'pixels': TELE_POINTS_SMALL},
-    36: {'fixture': {
-        'label': 'SLD',
-        'host': 'still-brook',
-        'opcChannel': 2},
-        'pixels': TELE_POINTS_SMALL},
-    37: {'fixture': {
-        'label': 'SRD',
-        'host': 'quiet-hill',
-        'opcChannel': 3},
-        'pixels': TELE_POINTS_SMALL},
-}
+            int(PIX_MID * BIG_SCALE),
+            int((BIG_HEIGHT * BIG_SCALE) + 1)
+        ],
+        "grid_matrix": [[-BIG_SCALE, 0], [0, -BIG_SCALE]],
+    })
+    # --> BD
+    POLY_OVERRIDES[27].update({
+        "grid_origin": [
+            int(-PIX_MID * BIG_SCALE),
+            int(-(BIG_HEIGHT * BIG_SCALE) - 1)
+        ],
+        "grid_matrix": [[BIG_SCALE, 0], [0, BIG_SCALE]],
+    })
+
+    logging.debug("-> SMALL PENTAGON VERTICALS (SLU, SLD, SRU, SRD)")
+    # to get from an upright small panel to SLD, we can fix the right bottom
+    # corner with BD, and skew the other verticies into position.
+    # in order to avoid a rotation by a messy skewed-pentagon angle, we instead
+    # skew the outer side of the triangle vertically towards the center, and then
+    # the vertex at the center of the pentagon is skewed horizontally into place
+    # so that it lines up with the outer triangles
+
+    # --> The gradient of the slope of the edges of the pentagon
+    PENT_VERT_GRAD = ((BIG_HEIGHT - PIX_MID + 1) / PIX_WIDTH)
+    PENT_VERT_SCALE_X = 2
+    # the desired height of a midpoint cross-section
+    PENT_VERT_MID_HEIGHT = (BIG_SCALE * (BIG_HEIGHT - (PIX_MID * PENT_VERT_GRAD + 1)))
+    # the Y scale factor required to scale the top verex to Y = 0
+    PENT_VERT_SCALE_Y = (PENT_VERT_MID_HEIGHT / SMALL_HEIGHT)
+    logging.debug(f"-> PENT_VERT_SCALE: ({PENT_VERT_SCALE_X}, {PENT_VERT_SCALE_Y})")
+
+    # since the x-component of base of the small outers is dependent on the
+    # x-component of base of the pentagon verticals, and the x-component
+    # of the top of the pentagon verticals is dependent on the
+    # x-component of the top of the small outers, we have to skip ahead a little
+    PENT_OUTER_SCALE_Y = 2
+    # The distance between the outer edge and the center of a pentagon with side
+    # length PIX_WIDTH * PENT_OUTER_SCALE_Y
+    PENT_OUTER_MID_DIST = (UNIT_PENT_MID_HEIGHT / UNIT_PENT_SIDE) * PENT_OUTER_SCALE_Y * PIX_WIDTH
+    logging.debug(f"-> PENT_OUTER_MID_DIST: {PENT_OUTER_MID_DIST}")
+    PENT_OUTER_SCALE_X = PENT_OUTER_MID_DIST / SMALL_HEIGHT
+    logging.debug(f"-> PENT_OUTER_SCALE_X: {PENT_OUTER_SCALE_X}")
+
+    # back to pentagon verticals, the x-position of the top vertex needs
+    # to be sheard horizontally from `PENT_VERT_SCALE_X * PIX_MID` to
+    # `PENT_OUTER_MID_DIST` at a distance of PENT_VERT_MID_HEIGHT
+    PENT_VERT_SHEAR_Y = (PENT_OUTER_MID_DIST - (PENT_VERT_SCALE_X * PIX_MID)) / PENT_VERT_MID_HEIGHT
+    PENT_VERT_SCALE = Matrix([[PENT_VERT_SCALE_X, 0], [0, PENT_VERT_SCALE_Y]])
+
+    # --> SLD
+    POLY_OVERRIDES[36].update({
+        "grid_origin": [
+            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE - PENT_VERT_SCALE_X * (PIX_WIDTH + 1)),
+            int(-PENT_VERT_SCALE_X * (PIX_MID + 1))
+        ],
+        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+        "grid_matrix": Matrix([
+            [PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+            [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
+        ]),
+    })
+    # --> SLU
+    POLY_OVERRIDES[10].update({
+        "grid_origin": [
+            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE - PENT_VERT_SCALE_X),
+            int(POLY_OVERRIDES[12]['grid_origin'][1])
+        ],
+        "grid_matrix": Matrix([
+            [-PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+            [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
+        ]),
+    })
+    # --> SRD
+    POLY_OVERRIDES[37].update({
+        "grid_origin": [
+            int(-POLY_OVERRIDES[10]['grid_origin'][0]),
+            int(-POLY_OVERRIDES[10]['grid_origin'][1])
+        ],
+        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+        "grid_matrix": Matrix([
+            [PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+            [PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
+        ]),
+    })
+    # --> SRU
+    POLY_OVERRIDES[1].update({
+        "grid_origin": [
+            int(-POLY_OVERRIDES[10]['grid_origin'][0]),
+            int(POLY_OVERRIDES[10]['grid_origin'][1])
+        ],
+        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+        "grid_matrix": Matrix([
+            [PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+            [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
+        ]),
+    })
+
+
+    logging.debug("-> SMALL OUTERS (SLO, SRO)")
+    # we rotate by 90 degrees, scale vertically by 2, and horizontally by 1
+
+    # --> SLO
+    POLY_OVERRIDES[25].update({
+        "grid_origin": [
+            POLY_OVERRIDES[36]['grid_origin'][0] - 1,
+            (PIX_MID * PENT_OUTER_SCALE_Y)
+        ],
+        "grid_matrix": [[0, PENT_OUTER_SCALE_X], [-PENT_OUTER_SCALE_Y, 0]],
+    })
+    # --> SRO
+    POLY_OVERRIDES[29].update({
+        "grid_origin": [
+            -POLY_OVERRIDES[25]['grid_origin'][0],
+            -(PIX_MID * PENT_OUTER_SCALE_Y)
+        ],
+        "grid_matrix": [[0, -PENT_OUTER_SCALE_X], [PENT_OUTER_SCALE_Y, 0]],
+    })
+
+    logging.debug("-> SMALL INNERS (SLIU, SLID, SRIU, SRID)")
+
+    # first we scale the triangle to the right size, then we rotate
+    # here.
+
+    # we want to scale the height to be PENT_OUTER_MID_DIST
+    INNER_SCALE_VERT = (PENT_OUTER_MID_DIST + 1) / SMALL_HEIGHT
+    # we want to scale the width of the base to be just less than the side length
+    # of a big panel.
+    INNER_SCALE_BASE = BIG_SCALE * BIG_HYP / SMALL_HYP
+    # a factor factor to shear the top vertex clockwise / counter clockwise
+    INNER_NUDGE = 0.2
+    INNER_SCALE_MATRIX_CW = Matrix([[INNER_SCALE_BASE, INNER_NUDGE], [0, INNER_SCALE_VERT]])
+    INNER_SCALE_MATRIX_CCW = Matrix([[INNER_SCALE_BASE, -INNER_NUDGE], [0, INNER_SCALE_VERT]])
+
+    # --> SLID
+    POLY_OVERRIDES[26].update({
+        "grid_origin": [
+            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE),
+            int(POLY_OVERRIDES[27]['grid_origin'][1])
+        ],
+        "grid_matrix": Matrix.Rotation(BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CW,
+    })
+    # --> SLIU
+    POLY_OVERRIDES[2].update({
+        "grid_origin": [
+            int(-BIG_SCALE),
+            int(1)
+        ],
+        "grid_matrix": Matrix.Rotation(pi - BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CCW,
+    })
+    # --> SRID
+    POLY_OVERRIDES[28].update({
+        "grid_origin": [
+            int(-POLY_OVERRIDES[2]['grid_origin'][0]),
+            int(-POLY_OVERRIDES[2]['grid_origin'][1])
+        ],
+        "grid_matrix": Matrix.Rotation( - BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CCW),
+    })
+    # --> SRIU
+    POLY_OVERRIDES[13].update({
+        "grid_origin": [
+            int(-POLY_OVERRIDES[26]['grid_origin'][0]),
+            int(-POLY_OVERRIDES[26]['grid_origin'][1])
+        ],
+        "grid_matrix": Matrix.Rotation(-pi + BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CW),
+    })
+
+
+
+    return POLY_OVERRIDES
 
 # DELETEME
 # EXPORT_TYPE = 'PMIN'
@@ -223,13 +424,13 @@ POLY_OVERRIDES = {
 # LED_MARGIN_VERTICAL_TOP = None
 
 
-def plot_vecs_2d(vecs):
-    logging.info(f"plotting: " + str(vecs))
-    # vecs = [vec.to_2d() for vec in vecs]
-    # logging.info(f"plotting:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs)))
-    import matplotlib.pyplot as plt
-    plt.plot(*zip(*(vecs + [(0, 0)])), 'o-')
-    plt.show()
+# def plot_vecs_2d(vecs):
+#     logging.info(f"plotting: " + str(vecs))
+#     # vecs = [vec.to_2d() for vec in vecs]
+#     # logging.info(f"plotting:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs)))
+#     import matplotlib.pyplot as plt
+#     plt.plot(*zip(*(vecs + [(0, 0)])), 'o-')
+#     plt.show()
 
 
 def orientation(*vecs):
@@ -1019,13 +1220,37 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
 
 
 def transform_grid_pixels(pixels, grid_origin, grid_matrix):
+    mat = Matrix(serialise_matrix(grid_matrix))
+    orig = Vector(grid_origin)
     return [
-        [
-            grid_origin[0] + (grid_matrix[0][0] * pixel[0]) + (grid_matrix[0][1] * pixel[1]),
-            grid_origin[1] + (grid_matrix[1][0] * pixel[0]) + (grid_matrix[1][1] * pixel[1]),
-        ]
+        map(int, orig + (mat @ Vector(pixel)))
         for pixel in pixels
     ]
+
+
+def debug_grid_info(grid_info):
+    import matplotlib.pyplot as plt
+    plt, ax = plt.subplots()
+    for label, info in grid_info.items():
+        grid_pixels = transform_grid_pixels(
+            info.get('pixels', [[0, 0]]),
+            info.get('grid_origin', [0, 0]),
+            info.get("grid_matrix", [[1, 0], [0, 1]])
+        )
+        ax.plot(*zip(*grid_pixels), 'o-', label=label, markersize=1, linewidth=0.5)
+
+    handles, labels = ax.get_legend_handles_labels()
+    logging.info(labels)
+
+    # Shrink current axis by 20%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1, 0.5))
+    # plt.show()
+    ax.axis('scaled')
+    plt.savefig("/tmp/mapping.png", dpi=1000)
+    shutil.move('/tmp/mapping.png', 'mapping.png')
 
 
 def main():
@@ -1054,7 +1279,10 @@ def main():
 
     selected_polygon_enum, suffix = get_selected_polygons_suffix(obj, EXPORT_TYPE)
 
-    ALL_GRID_PIXELS = []
+    # ALL_GRID_PIXELS = []
+    grid_info = {}
+
+    POLY_OVERRIDES = get_back_overrides()
 
     for poly_idx, polygon in selected_polygon_enum:
 
@@ -1135,9 +1363,6 @@ def main():
             logging.debug(f"overriding grid_matrix ({grid_matrix})")
             grid_matrix = poly_overrides['grid_matrix']
 
-        grid_pixels = transform_grid_pixels(pixels, grid_origin, grid_matrix)
-        ALL_GRID_PIXELS.extend(grid_pixels)
-
         panel['spacing'] = info['spacing']
         fixture['parameters']['rowSpacing'] = info['spacing'][0]
         fixture['parameters']['columnSpacing'] = info['spacing'][1]
@@ -1176,6 +1401,12 @@ def main():
         fixture['parameters'].update(poly_fix_overrides)
         fixtures.append(fixture)
 
+        grid_info[fixture['parameters']['label']] = {
+            'pixels': pixels,
+            'grid_origin': grid_origin,
+            'grid_matrix': grid_matrix
+        }
+
         if IGNORE_LAMPS:
             continue
 
@@ -1199,7 +1430,7 @@ def main():
 
     logging.info(f"*** Completed Light Layout ***")
 
-    plot_vecs_2d(ALL_GRID_PIXELS)
+    debug_grid_info(grid_info)
 
 
 if __name__ == '__main__':
