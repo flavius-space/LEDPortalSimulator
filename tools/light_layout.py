@@ -122,8 +122,20 @@ INNERSIDE = 22
 Y_CLEARANCE = 0
 
 SRU_ANGLE = pi - SMALL_ANGLE
+
+# Overrides parameters for all fixtures
 OVERRIDES = {
-    1: {'fixture': {'label': 'SRU'},
+    "fixture": {
+        "port": 42069,
+        "protocol": 3
+    }
+}
+# Override parameters by polygon idx
+POLY_OVERRIDES = {
+    1: {'fixture': {
+        'label': 'SRU',
+        'host': 'quiet-hill',
+        'opcChannel': 1},
         "grid_origin": [
             -1,
             Y_CLEARANCE + 1],
@@ -131,37 +143,74 @@ OVERRIDES = {
             [cos(SRU_ANGLE), -sin(SRU_ANGLE)],
             [sin(SRU_ANGLE), cos(SRU_ANGLE)]],
         'pixels': TELE_POINTS_SMALL},
-    2: {'fixture': {'label': 'SLIU'}, 'pixels': TELE_POINTS_SMALL},
-    10: {'fixture': {'label': 'SLU'}, 'pixels': TELE_POINTS_SMALL},
-    12: {'fixture': {'label': 'BU'},
+    2: {'fixture': {
+        'label': 'SLIU',
+        'host': 'lingering-brook',
+        'opcChannel': 1},
+        'pixels': TELE_POINTS_SMALL},
+    10: {'fixture': {
+        'label': 'SLU',
+        'host': 'still-brook',
+        'opcChannel': 0},
+        'pixels': TELE_POINTS_SMALL},
+    12: {'fixture': {
+         'label': 'BU',
+         'host': 'lingering-brook',
+         'opcChannel': 1},
          "grid_origin": [  #
              PIX_MID * 2 + 1,  #
              Y_CLEARANCE + (BIG_HEIGHT * 2) + 1],
          "grid_matrix": [[-2, 0], [0, -2]],
          'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
-    13: {'fixture': {'label': 'SRIU'}, 'pixels': TELE_POINTS_SMALL},
-    25: {'fixture': {'label': 'SLO'},
+    13: {'fixture': {
+        'label': 'SRIU',
+        'host': 'quiet-hill',
+        'opcChannel': 0},
+        'pixels': TELE_POINTS_SMALL},
+    25: {'fixture': {
+         'label': 'SLO',
+         'host': 'still-brook',
+         'opcChannel': 1},
          "grid_origin": [  #
              -(INNERSIDE + SMALL_HEIGHT),  #
              Y_CLEARANCE + (PIX_MID * 2)],
          "grid_matrix": [[0, 1], [-2, 0]],
          'pixels': TELE_POINTS_SMALL},
-    26: {'fixture': {'label': 'SLID'}, 'pixels': TELE_POINTS_SMALL},
-    27: {'fixture': {'label': 'BD'},
+    26: {'fixture': {
+        'label': 'SLID',
+        'host': 'still-brook',
+        'opcChannel': 3},
+        'pixels': TELE_POINTS_SMALL},
+    27: {'fixture': {
+         'label': 'BD',
+         'host': 'lingering-brook',
+         'opcChannel': 2},
          "grid_origin": [  #
              -PIX_MID * 2,  #
              Y_CLEARANCE - (BIG_HEIGHT * 2) - 1],
          "grid_matrix": [[2, 0], [0, 2]],
          'pixels': TELE_POINTS_BIG},
-    28: {'fixture': {'label': 'SRID'}, 'pixels': TELE_POINTS_SMALL},
+    28: {'fixture': {
+        'label': 'SRID',
+        'host': 'lingering-brook',
+        'opcChannel': 3},
+        'pixels': TELE_POINTS_SMALL},
     29: {'fixture': {'label': 'SRO'},
          "grid_origin": [  #
              INNERSIDE + SMALL_HEIGHT,  #
              Y_CLEARANCE - (PIX_MID * 2)],
          "grid_matrix": [[0, -1], [2, 0]],
          'pixels': TELE_POINTS_SMALL},
-    36: {'fixture': {'label': 'SLD'}, 'pixels': TELE_POINTS_SMALL},
-    37: {'fixture': {'label': 'SRD'}, 'pixels': TELE_POINTS_SMALL},
+    36: {'fixture': {
+        'label': 'SLD',
+        'host': 'still-brook',
+        'opcChannel': 2},
+        'pixels': TELE_POINTS_SMALL},
+    37: {'fixture': {
+        'label': 'SRD',
+        'host': 'quiet-hill',
+        'opcChannel': 3},
+        'pixels': TELE_POINTS_SMALL},
 }
 
 # DELETEME
@@ -1009,8 +1058,11 @@ def main():
 
     for poly_idx, polygon in selected_polygon_enum:
 
-        poly_overrides = OVERRIDES.get(poly_idx, {})
-        poly_fix_overrides = poly_overrides.get('fixture', {})
+        poly_overrides = {**OVERRIDES, **POLY_OVERRIDES.get(poly_idx, {})}
+        poly_fix_overrides = {
+            **OVERRIDES.get('fixture'),
+            **POLY_OVERRIDES.get(poly_idx, {}).get('fixture', {})
+        }
 
         name = f"{sanitise_names(obj.name)}.{EXPORT_TYPE}[{poly_idx}]"
         logging.info(f"polygon name: {name}")
