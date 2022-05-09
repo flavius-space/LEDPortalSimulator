@@ -10,7 +10,7 @@ from pprint import pformat
 import bpy
 import coloredlogs
 import numpy as np
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 ORIGIN_3D = Vector((0, 0, 0))
 X_AXIS_3D = Vector((1, 0, 0))
@@ -50,15 +50,20 @@ def format_vector(vec):
     S => Spherical (r, θ, ɸ)
     P => Polar (r, θ)
     """
-    mag = vec.magnitude
-    if len(vec) == 3:
-        theta = vec.to_2d().angle_signed(X_AXIS_2D) if vec.to_2d().magnitude > 0 else nan
-        phi = vec.angle(Z_AXIS_3D) if mag > 0 else nan
-        return f"C({vec.x: 7.3f}, {vec.y: 7.3f}, {vec.z: 7.3f}) " \
+    try:
+        vec_ = Vector((*vec,))
+    except:
+        breakpoint()
+    vec_ = Vector((*vec,)) if type(vec) != Vector else vec
+    mag = vec_.magnitude
+    if len(vec_) == 3:
+        theta = vec_.to_2d().angle_signed(X_AXIS_2D) if vec_.to_2d().magnitude > 0 else nan
+        phi = vec_.angle(Z_AXIS_3D) if mag > 0 else nan
+        return f"C({vec_.x: 7.3f}, {vec_.y: 7.3f}, {vec_.z: 7.3f}) " \
             f"Sr: {mag: 7.3f}, Sθ: {format_angle(theta)}, Sɸ: {format_angle(phi)})"
-    elif len(vec) == 2:
-        theta = vec.angle_signed(X_AXIS_2D) if mag > 0 else nan
-        return f"C({vec.x: 7.3f}, {vec.y: 7.3f}) " \
+    elif len(vec_) == 2:
+        theta = vec_.angle_signed(X_AXIS_2D) if mag > 0 else nan
+        return f"C({vec_.x: 7.3f}, {vec_.y: 7.3f}) " \
             f"Pr: {mag: 7.3f}, Pθ: {format_angle(theta)})"
 
 
@@ -88,13 +93,19 @@ def format_matrix(mat, name="Matrix", indent=1):
     R => Rotation
     S => Scale
     """
-    loc, rot, scale = mat.decompose()
-    out = '\n'.join([
-        f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
-        f"{name} Loc:" + ENDLTAB + format_vector(loc),
-        f"{name} Rot:" + ENDLTAB + format_quaternion(rot),
-        f"{name} Scale:" + ENDLTAB + format_vector(scale),
-    ])
+    mat_ = Matrix(mat) if type(mat) != Matrix else mat
+    if len(mat) == 4:
+        loc, rot, scale = mat_.decompose()
+        out = '\n'.join([
+            f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
+            f"{name} Loc:" + ENDLTAB + format_vector(loc),
+            f"{name} Rot:" + ENDLTAB + format_quaternion(rot),
+            f"{name} Scale:" + ENDLTAB + format_vector(scale),
+        ])
+    else:
+        out = '\n'.join([
+            f"{name} Full:" + ENDLTAB + pformat(mat).replace('\n', '\n\t'),
+        ])
     return out.replace('\n', ('\n' + (indent * '\t')))
 
 

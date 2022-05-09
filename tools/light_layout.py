@@ -17,6 +17,7 @@ import os
 import sys
 from functools import reduce
 from itertools import starmap
+from more_itertools import windowed
 from math import acos, asin, ceil, copysign, floor, inf, isinf, nan, pi, sin, sqrt, cos, atan2, degrees
 from pprint import pformat
 import traceback
@@ -60,9 +61,10 @@ LED_MARGIN_RIGHT = None
 LED_SPACING_VERTICAL = None
 EXPORT_TYPE = 'P'
 IGNORE_LAMPS = False
-IGNORE_LAMPS = True
+# IGNORE_LAMPS = True
 REGION_NAME = None
-REGION_NAME = "BACK"
+# REGION_NAME = "BACK"
+REGION_NAME = "OG"
 
 # Makex axes in blender match LX
 # COORDINATE_TRANSFORM = Matrix([
@@ -128,6 +130,110 @@ OVERRIDES = {
     }
 }
 
+#########################
+# TELECORTEXT OG LAYOUT #
+#########################
+#                    •
+#                /   |   \
+#            /  SFLD | SFRD  \
+#         •----------•----------•
+#      /  | BLU   /  |   \  BRU |  \
+#   / SMLU|  /  SALU | SARU  \  |SMRU \
+# •-------•----------•----------•-------•
+#  \SMLD /  \ SALD /   \ SARD /  \SMRD /
+#   \  /  BLD \   / SAD \   / BRD  \  /
+#    •----------•---------•----------•
+#      \ SLU  /   \  BU /   \ SRU  /
+#        \  / SLIU  \ / SRIU  \  /
+#          •---------•---------•
+#
+# Codes:
+# - S|B = small / big
+# - L|R = left or right lower pentagon
+# - I = inner (close to center of mapping)
+# - A = Apex pentagon
+# - F = Font pentagon
+# - M = Middle pentagon
+# - U|D = up or down
+# -> labels, controller info and rotations
+
+
+def get_og_overrides():
+    POLY_OVERRIDES = {
+        0: {'fixture': {
+            'label': 'SMLU',
+            'host': 'lingering-brook',
+            'opcChannel': 0},
+            'pixels': TELE_POINTS_SMALL},
+        1: {'fixture': {
+            'label': 'SRU',
+            'host': 'quiet-hill',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        2: {'fixture': {
+            'label': 'SLIU',
+            'host': 'lingering-brook',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        5: {'fixture': {
+            'label': 'SARU',
+            'host': 'cold-thunder',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        8: {'fixture': {
+            'label': 'SARD',
+            'host': 'quiet-hill',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        9: {'fixture': {
+            'label': 'BRD',
+            'host': 'quiet-hill',
+            'opcChannel': 2},
+            'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
+        10: {'fixture': {
+            'label': 'SLU',
+            'host': 'still-brook',
+            'opcChannel': 0},
+            'pixels': TELE_POINTS_SMALL},
+        11: {'fixture': {
+            'label': 'SAD',
+            'host': 'still-brook',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        12: {'fixture': {
+            'label': 'BU',
+            'host': 'still-brook',
+            'opcChannel': 2},
+            'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
+        13: {'fixture': {
+            'label': 'SRIU',
+            'host': 'quiet-hill',
+            'opcChannel': 0},
+            'pixels': TELE_POINTS_SMALL},
+        14: {'fixture': {
+            'label': 'SALD',
+            'host': 'lingering-brook',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+        15: {'fixture': {
+            'label': 'BLD',
+            'host': 'lingering-brook',
+            'opcChannel': 2},
+            'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
+        16: {'fixture': {
+            'label': 'SMLD',
+            'host': 'lingering-brook',
+            'opcChannel': 1},
+            'pixels': TELE_POINTS_SMALL},
+        17: {'fixture': {
+            'label': 'SALU',
+            'host': 'damp-frog',
+            'opcChannel': 3},
+            'pixels': TELE_POINTS_SMALL},
+    }
+
+    return POLY_OVERRIDES
+
 ##########################
 # TELECORTEX BACK LAYOUT #
 ##########################
@@ -143,19 +249,22 @@ OVERRIDES = {
 # rotations and non-integer scale / skews wherever possible.
 
 # Panel Naming:
-#          /\``````/\
-# .----```/  \ BU /  \```----.
-# |`\.SLU/SLIU\  /SRIU\SRU./ |
-# |SLO`\/      \/      \/ SRO|
-# |   ./\``````/\``````/\.   |
-# |./`SLD\SLID/  \SRID/SRD`\.|
-# `----___\  / BD \  /___----`
-#          \/______\/
+#
+#    •----------•---------•----------•
+#    | \ SLU  /   \  BU /   \ SRU  / |
+#    |   \  / SLIU  \ / SRIU  \  /   |
+#    |SLO  •---------•---------•  SRO|
+#    |   /  \ SLID /   \ SRID /  \   |
+#    | /  SLD \   / BD  \   / SRD  \ |
+#    •----------•---------•----------•
 #
 # Codes:
 # - S|B = small / big
-# - L|R = left or right pentagon
+# - L|R = left or right lower pentagon
 # - I = inner (close to center of mapping)
+# - A = Apex pentagon
+# - F = Font pentagon
+# - M = Middle pentagon
 # - U|D = up or down
 # -> labels, controller info and rotations
 
@@ -163,63 +272,63 @@ OVERRIDES = {
 def get_back_overrides():
     POLY_OVERRIDES = {
         1: {'fixture': {
-            'label': 'SRU 1',
+            'label': 'SRU',
             'host': 'quiet-hill',
             'opcChannel': 1},
             'pixels': TELE_POINTS_SMALL},
         2: {'fixture': {
-            'label': 'SLIU 2',
+            'label': 'SLIU',
             'host': 'lingering-brook',
             'opcChannel': 0},
             'pixels': TELE_POINTS_SMALL},
         10: {'fixture': {
-            'label': 'SLU 10',
+            'label': 'SLU',
             'host': 'still-brook',
             'opcChannel': 0},
             'pixels': TELE_POINTS_SMALL},
         12: {'fixture': {
-            'label': 'BU 12',
+            'label': 'BU',
             'host': 'lingering-brook',
             'opcChannel': 1},
             'pixels': TELE_POINTS_BIG, 'vertex_rotation': 3},
         13: {'fixture': {
-            'label': 'SRIU 13',
+            'label': 'SRIU',
             'host': 'quiet-hill',
             'opcChannel': 0},
             'pixels': TELE_POINTS_SMALL},
         25: {'fixture': {
-            'label': 'SLO 25',
+            'label': 'SLO',
             'host': 'still-brook',
             'opcChannel': 1},
             'pixels': TELE_POINTS_SMALL},
         26: {'fixture': {
-            'label': 'SLID 26',
+            'label': 'SLID',
             'host': 'still-brook',
             'opcChannel': 3},
             'pixels': TELE_POINTS_SMALL},
         27: {'fixture': {
-            'label': 'BD 27',
+            'label': 'BD',
             'host': 'lingering-brook',
             'opcChannel': 2},
             'pixels': TELE_POINTS_BIG},
         28: {'fixture': {
-            'label': 'SRID 28',
+            'label': 'SRID',
             'host': 'lingering-brook',
             'opcChannel': 3},
             'pixels': TELE_POINTS_SMALL},
         # TODO: what controller is this?
         29: {'fixture': {
-            'label': 'SRO 29',
+            'label': 'SRO',
             'host': 'quiet-hill',
             'opcChannel': 0},
             'pixels': TELE_POINTS_SMALL},
         36: {'fixture': {
-            'label': 'SLD 36',
+            'label': 'SLD',
             'host': 'still-brook',
             'opcChannel': 2},
             'pixels': TELE_POINTS_SMALL},
         37: {'fixture': {
-            'label': 'SRD 37',
+            'label': 'SRD',
             'host': 'quiet-hill',
             'opcChannel': 3},
             'pixels': TELE_POINTS_SMALL},
@@ -227,204 +336,202 @@ def get_back_overrides():
 
     # -> GEOMETRY
 
-    PIX_MID = PIX_WIDTH // 2
-    BIG_HEIGHT = 23
-    BIG_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
-    BIG_ANGLE = atan2(BIG_HEIGHT, PIX_MID)
-    BIG_SIN = sin(BIG_ANGLE)
-    BIG_COS = cos(BIG_ANGLE)
-    SMALL_HEIGHT = 19
-    SMALL_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
-    SMALL_ANGLE = atan2(SMALL_HEIGHT, PIX_MID)
-    SMALL_SIN = sin(SMALL_ANGLE)
-    SMALL_COS = cos(SMALL_ANGLE)
-    # The midpoint height of a unit pentagon (all vertices unit from origin)
-    UNIT_PENT_MID_HEIGHT = acos(2 * pi / 10)
-    # The side length of a unit pentagon
-    UNIT_PENT_SIDE = 2 * asin(2 * pi / 10)
-    # The midpoint height of a pentagon with side length = PIX_WIDTH
+    # PIX_MID = PIX_WIDTH // 2
+    # BIG_HEIGHT = 23
+    # BIG_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
+    # BIG_ANGLE = atan2(BIG_HEIGHT, PIX_MID)
+    # BIG_SIN = sin(BIG_ANGLE)
+    # BIG_COS = cos(BIG_ANGLE)
+    # SMALL_HEIGHT = 19
+    # SMALL_HYP = sqrt((BIG_HEIGHT * BIG_HEIGHT) + (PIX_MID * PIX_MID))
+    # SMALL_ANGLE = atan2(SMALL_HEIGHT, PIX_MID)
+    # SMALL_SIN = sin(SMALL_ANGLE)
+    # SMALL_COS = cos(SMALL_ANGLE)
+    # # The midpoint height of a unit pentagon (all vertices unit from origin)
+    # UNIT_PENT_MID_HEIGHT = acos(2 * pi / 10)
+    # # The side length of a unit pentagon
+    # UNIT_PENT_SIDE = 2 * asin(2 * pi / 10)
+    # # The midpoint height of a pentagon with side length = PIX_WIDTH
 
-    # side length of inner small panel in global pixel coords
-    INNERSIDE = 22
-    # INNERSIDE = 0
+    # # side length of inner small panel in global pixel coords
+    # # INNERSIDE =
+    # # INNERSIDE = 0
 
-    # -> BIG PANELS (BU and BD)
-    # these panels' normals are the most orthogonal to the internal grid camera, and
-    # so their mapping is a simple scale up by 2. This means that there are extra
-    # rows for pixels from other panels that have more squished transforms to use.
+    # # -> BIG PANELS (BU and BD)
+    # # these panels' normals are the most orthogonal to the internal grid camera, and
+    # # so their mapping is a simple scale up by 2. This means that there are extra
+    # # rows for pixels from other panels that have more squished transforms to use.
 
-    BIG_SCALE = 2
+    # BIG_SCALE = 2
 
-    # --> BU
-    POLY_OVERRIDES[12].update({
-        "grid_origin": [
-            int(PIX_MID * BIG_SCALE),
-            int((BIG_HEIGHT * BIG_SCALE) + 1)
-        ],
-        "grid_matrix": [[-BIG_SCALE, 0], [0, -BIG_SCALE]],
-    })
-    # --> BD
-    POLY_OVERRIDES[27].update({
-        "grid_origin": [
-            int(-PIX_MID * BIG_SCALE),
-            int(-(BIG_HEIGHT * BIG_SCALE) - 1)
-        ],
-        "grid_matrix": [[BIG_SCALE, 0], [0, BIG_SCALE]],
-    })
+    # # --> BU
+    # POLY_OVERRIDES[12].update({
+    #     "grid_origin": [
+    #         int(PIX_MID * BIG_SCALE),
+    #         int((BIG_HEIGHT * BIG_SCALE) + 1)
+    #     ],
+    #     "grid_matrix": [[-BIG_SCALE, 0], [0, -BIG_SCALE]],
+    # })
+    # # --> BD
+    # POLY_OVERRIDES[27].update({
+    #     "grid_origin": [
+    #         int(-PIX_MID * BIG_SCALE),
+    #         int(-(BIG_HEIGHT * BIG_SCALE) - 1)
+    #     ],
+    #     "grid_matrix": [[BIG_SCALE, 0], [0, BIG_SCALE]],
+    # })
 
-    logging.debug("-> SMALL PENTAGON VERTICALS (SLU, SLD, SRU, SRD)")
-    # to get from an upright small panel to SLD, we can fix the right bottom
-    # corner with BD, and skew the other verticies into position.
-    # in order to avoid a rotation by a messy skewed-pentagon angle, we instead
-    # skew the outer side of the triangle vertically towards the center, and then
-    # the vertex at the center of the pentagon is skewed horizontally into place
-    # so that it lines up with the outer triangles
+    # logging.debug("-> SMALL PENTAGON VERTICALS (SLU, SLD, SRU, SRD)")
+    # # to get from an upright small panel to SLD, we can fix the right bottom
+    # # corner with BD, and skew the other verticies into position.
+    # # in order to avoid a rotation by a messy skewed-pentagon angle, we instead
+    # # skew the outer side of the triangle vertically towards the center, and then
+    # # the vertex at the center of the pentagon is skewed horizontally into place
+    # # so that it lines up with the outer triangles
 
-    # --> The gradient of the slope of the edges of the pentagon
-    PENT_VERT_GRAD = ((BIG_HEIGHT - PIX_MID + 1) / PIX_WIDTH)
-    PENT_VERT_SCALE_X = 2
-    # the desired height of a midpoint cross-section
-    PENT_VERT_MID_HEIGHT = (BIG_SCALE * (BIG_HEIGHT - (PIX_MID * PENT_VERT_GRAD + 1)))
-    # the Y scale factor required to scale the top verex to Y = 0
-    PENT_VERT_SCALE_Y = (PENT_VERT_MID_HEIGHT / SMALL_HEIGHT)
-    logging.debug(f"-> PENT_VERT_SCALE: ({PENT_VERT_SCALE_X}, {PENT_VERT_SCALE_Y})")
+    # # --> The gradient of the slope of the edges of the pentagon
+    # PENT_VERT_GRAD = ((BIG_HEIGHT - PIX_MID + 1) / PIX_WIDTH)
+    # PENT_VERT_SCALE_X = 2
+    # # the desired height of a midpoint cross-section
+    # PENT_VERT_MID_HEIGHT = (BIG_SCALE * (BIG_HEIGHT - (PIX_MID * PENT_VERT_GRAD + 1)))
+    # # the Y scale factor required to scale the top verex to Y = 0
+    # PENT_VERT_SCALE_Y = (PENT_VERT_MID_HEIGHT / SMALL_HEIGHT)
+    # logging.debug(f"-> PENT_VERT_SCALE: ({PENT_VERT_SCALE_X}, {PENT_VERT_SCALE_Y})")
 
-    # since the x-component of base of the small outers is dependent on the
-    # x-component of base of the pentagon verticals, and the x-component
-    # of the top of the pentagon verticals is dependent on the
-    # x-component of the top of the small outers, we have to skip ahead a little
-    PENT_OUTER_SCALE_Y = 2
-    # The distance between the outer edge and the center of a pentagon with side
-    # length PIX_WIDTH * PENT_OUTER_SCALE_Y
-    PENT_OUTER_MID_DIST = (UNIT_PENT_MID_HEIGHT / UNIT_PENT_SIDE) * PENT_OUTER_SCALE_Y * PIX_WIDTH
-    logging.debug(f"-> PENT_OUTER_MID_DIST: {PENT_OUTER_MID_DIST}")
-    PENT_OUTER_SCALE_X = PENT_OUTER_MID_DIST / SMALL_HEIGHT
-    logging.debug(f"-> PENT_OUTER_SCALE_X: {PENT_OUTER_SCALE_X}")
+    # # since the x-component of base of the small outers is dependent on the
+    # # x-component of base of the pentagon verticals, and the x-component
+    # # of the top of the pentagon verticals is dependent on the
+    # # x-component of the top of the small outers, we have to skip ahead a little
+    # PENT_OUTER_SCALE_Y = 2
+    # # The distance between the outer edge and the center of a pentagon with side
+    # # length PIX_WIDTH * PENT_OUTER_SCALE_Y
+    # PENT_OUTER_MID_DIST = (UNIT_PENT_MID_HEIGHT / UNIT_PENT_SIDE) * PENT_OUTER_SCALE_Y * PIX_WIDTH
+    # logging.debug(f"-> PENT_OUTER_MID_DIST: {PENT_OUTER_MID_DIST}")
+    # PENT_OUTER_SCALE_X = PENT_OUTER_MID_DIST / SMALL_HEIGHT
+    # logging.debug(f"-> PENT_OUTER_SCALE_X: {PENT_OUTER_SCALE_X}")
 
-    # back to pentagon verticals, the x-position of the top vertex needs
-    # to be sheard horizontally from `PENT_VERT_SCALE_X * PIX_MID` to
-    # `PENT_OUTER_MID_DIST` at a distance of PENT_VERT_MID_HEIGHT
-    PENT_VERT_SHEAR_Y = (PENT_OUTER_MID_DIST - (PENT_VERT_SCALE_X * PIX_MID)) / PENT_VERT_MID_HEIGHT
-    PENT_VERT_SCALE = Matrix([[PENT_VERT_SCALE_X, 0], [0, PENT_VERT_SCALE_Y]])
+    # # back to pentagon verticals, the x-position of the top vertex needs
+    # # to be sheard horizontally from `PENT_VERT_SCALE_X * PIX_MID` to
+    # # `PENT_OUTER_MID_DIST` at a distance of PENT_VERT_MID_HEIGHT
+    # PENT_VERT_SHEAR_Y = (PENT_OUTER_MID_DIST - (PENT_VERT_SCALE_X * PIX_MID)) / PENT_VERT_MID_HEIGHT
+    # PENT_VERT_SCALE = Matrix([[PENT_VERT_SCALE_X, 0], [0, PENT_VERT_SCALE_Y]])
 
-    # --> SLD
-    POLY_OVERRIDES[36].update({
-        "grid_origin": [
-            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE - PENT_VERT_SCALE_X * (PIX_WIDTH + 1)),
-            int(-PENT_VERT_SCALE_X * (PIX_MID + 1))
-        ],
-        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
-        "grid_matrix": Matrix([
-            [PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
-            [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
-        ]),
-    })
-    # --> SLU
-    POLY_OVERRIDES[10].update({
-        "grid_origin": [
-            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE - PENT_VERT_SCALE_X),
-            int(POLY_OVERRIDES[12]['grid_origin'][1])
-        ],
-        "grid_matrix": Matrix([
-            [-PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
-            [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
-        ]),
-    })
-    # --> SRD
-    POLY_OVERRIDES[37].update({
-        "grid_origin": [
-            int(-POLY_OVERRIDES[10]['grid_origin'][0]),
-            int(-POLY_OVERRIDES[10]['grid_origin'][1])
-        ],
-        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
-        "grid_matrix": Matrix([
-            [PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
-            [PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
-        ]),
-    })
-    # --> SRU
-    POLY_OVERRIDES[1].update({
-        "grid_origin": [
-            int(-POLY_OVERRIDES[36]['grid_origin'][0]),
-            int(-POLY_OVERRIDES[36]['grid_origin'][1])
-        ],
-        # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
-        "grid_matrix": Matrix([
-            [-PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
-            [PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
-        ]),
-    })
+    # # --> SLD
+    # POLY_OVERRIDES[36].update({
+    #     "grid_origin": [
+    #         int(POLY_OVERRIDES[27]['grid_origin'][0] -
+    #             BIG_SCALE - PENT_VERT_SCALE_X * (PIX_WIDTH + 1)),
+    #         int(-PENT_VERT_SCALE_X * (PIX_MID + 1))
+    #     ],
+    #     # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+    #     "grid_matrix": Matrix([
+    #         [PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+    #         [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
+    #     ]),
+    # })
+    # # --> SLU
+    # POLY_OVERRIDES[10].update({
+    #     "grid_origin": [
+    #         int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE - PENT_VERT_SCALE_X),
+    #         int(POLY_OVERRIDES[12]['grid_origin'][1])
+    #     ],
+    #     "grid_matrix": Matrix([
+    #         [-PENT_VERT_SCALE_X, PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+    #         [-PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
+    #     ]),
+    # })
+    # # --> SRD
+    # POLY_OVERRIDES[37].update({
+    #     "grid_origin": [
+    #         int(-POLY_OVERRIDES[10]['grid_origin'][0]),
+    #         int(-POLY_OVERRIDES[10]['grid_origin'][1])
+    #     ],
+    #     # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+    #     "grid_matrix": Matrix([
+    #         [PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+    #         [PENT_VERT_GRAD * PENT_VERT_SCALE_Y, PENT_VERT_SCALE_Y]
+    #     ]),
+    # })
+    # # --> SRU
+    # POLY_OVERRIDES[1].update({
+    #     "grid_origin": [
+    #         int(-POLY_OVERRIDES[36]['grid_origin'][0]),
+    #         int(-POLY_OVERRIDES[36]['grid_origin'][1])
+    #     ],
+    #     # "grid_matrix": Matrix([[1, PENT_VERT_SHEAR_Y], [-PENT_VERT_GRAD, 1]]) @ PENT_VERT_SCALE,
+    #     "grid_matrix": Matrix([
+    #         [-PENT_VERT_SCALE_X, -PENT_VERT_SHEAR_Y * PENT_VERT_SCALE_X],
+    #         [PENT_VERT_GRAD * PENT_VERT_SCALE_Y, -PENT_VERT_SCALE_Y]
+    #     ]),
+    # })
 
+    # logging.debug("-> SMALL OUTERS (SLO, SRO)")
+    # # we rotate by 90 degrees, scale vertically by 2, and horizontally by 1
 
-    logging.debug("-> SMALL OUTERS (SLO, SRO)")
-    # we rotate by 90 degrees, scale vertically by 2, and horizontally by 1
+    # # --> SLO
+    # POLY_OVERRIDES[25].update({
+    #     "grid_origin": [
+    #         POLY_OVERRIDES[36]['grid_origin'][0] - 1,
+    #         (PIX_MID * PENT_OUTER_SCALE_Y)
+    #     ],
+    #     "grid_matrix": [[0, PENT_OUTER_SCALE_X], [-PENT_OUTER_SCALE_Y, 0]],
+    # })
+    # # --> SRO
+    # POLY_OVERRIDES[29].update({
+    #     "grid_origin": [
+    #         -POLY_OVERRIDES[25]['grid_origin'][0],
+    #         -(PIX_MID * PENT_OUTER_SCALE_Y)
+    #     ],
+    #     "grid_matrix": [[0, -PENT_OUTER_SCALE_X], [PENT_OUTER_SCALE_Y, 0]],
+    # })
 
-    # --> SLO
-    POLY_OVERRIDES[25].update({
-        "grid_origin": [
-            POLY_OVERRIDES[36]['grid_origin'][0] - 1,
-            (PIX_MID * PENT_OUTER_SCALE_Y)
-        ],
-        "grid_matrix": [[0, PENT_OUTER_SCALE_X], [-PENT_OUTER_SCALE_Y, 0]],
-    })
-    # --> SRO
-    POLY_OVERRIDES[29].update({
-        "grid_origin": [
-            -POLY_OVERRIDES[25]['grid_origin'][0],
-            -(PIX_MID * PENT_OUTER_SCALE_Y)
-        ],
-        "grid_matrix": [[0, -PENT_OUTER_SCALE_X], [PENT_OUTER_SCALE_Y, 0]],
-    })
+    # logging.debug("-> SMALL INNERS (SLIU, SLID, SRIU, SRID)")
 
-    logging.debug("-> SMALL INNERS (SLIU, SLID, SRIU, SRID)")
+    # # first we scale the triangle to the right size, then we rotate
+    # # here.
 
-    # first we scale the triangle to the right size, then we rotate
-    # here.
+    # # we want to scale the height to be PENT_OUTER_MID_DIST
+    # INNER_SCALE_VERT = (PENT_OUTER_MID_DIST + 1) / SMALL_HEIGHT
+    # # we want to scale the width of the base to be just less than the side length
+    # # of a big panel.
+    # INNER_SCALE_BASE = BIG_SCALE * BIG_HYP / SMALL_HYP
+    # # a factor factor to shear the top vertex clockwise / counter clockwise
+    # INNER_NUDGE = 0.25
+    # INNER_SCALE_MATRIX_CW = Matrix([[INNER_SCALE_BASE, INNER_NUDGE], [0, INNER_SCALE_VERT]])
+    # INNER_SCALE_MATRIX_CCW = Matrix([[INNER_SCALE_BASE, -INNER_NUDGE], [0, INNER_SCALE_VERT]])
 
-    # we want to scale the height to be PENT_OUTER_MID_DIST
-    INNER_SCALE_VERT = (PENT_OUTER_MID_DIST + 1) / SMALL_HEIGHT
-    # we want to scale the width of the base to be just less than the side length
-    # of a big panel.
-    INNER_SCALE_BASE = BIG_SCALE * BIG_HYP / SMALL_HYP
-    # a factor factor to shear the top vertex clockwise / counter clockwise
-    INNER_NUDGE = 0.25
-    INNER_SCALE_MATRIX_CW = Matrix([[INNER_SCALE_BASE, INNER_NUDGE], [0, INNER_SCALE_VERT]])
-    INNER_SCALE_MATRIX_CCW = Matrix([[INNER_SCALE_BASE, -INNER_NUDGE], [0, INNER_SCALE_VERT]])
-
-    # --> SLID
-    POLY_OVERRIDES[26].update({
-        "grid_origin": [
-            int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE),
-            int(POLY_OVERRIDES[27]['grid_origin'][1])
-        ],
-        "grid_matrix": Matrix.Rotation(BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CW,
-    })
-    # --> SLIU
-    POLY_OVERRIDES[2].update({
-        "grid_origin": [
-            int(-BIG_SCALE),
-            int(1)
-        ],
-        "grid_matrix": Matrix.Rotation(pi - BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CCW,
-    })
-    # --> SRID
-    POLY_OVERRIDES[28].update({
-        "grid_origin": [
-            int(-POLY_OVERRIDES[2]['grid_origin'][0]),
-            int(-POLY_OVERRIDES[2]['grid_origin'][1])
-        ],
-        "grid_matrix": Matrix.Rotation( - BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CCW),
-    })
-    # --> SRIU
-    POLY_OVERRIDES[13].update({
-        "grid_origin": [
-            int(-POLY_OVERRIDES[26]['grid_origin'][0]),
-            int(-POLY_OVERRIDES[26]['grid_origin'][1])
-        ],
-        "grid_matrix": Matrix.Rotation(-pi + BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CW),
-    })
-
-
+    # # --> SLID
+    # POLY_OVERRIDES[26].update({
+    #     "grid_origin": [
+    #         int(POLY_OVERRIDES[27]['grid_origin'][0] - BIG_SCALE),
+    #         int(POLY_OVERRIDES[27]['grid_origin'][1])
+    #     ],
+    #     "grid_matrix": Matrix.Rotation(BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CW,
+    # })
+    # # --> SLIU
+    # POLY_OVERRIDES[2].update({
+    #     "grid_origin": [
+    #         int(-BIG_SCALE),
+    #         int(1)
+    #     ],
+    #     "grid_matrix": Matrix.Rotation(pi - BIG_ANGLE, 2, 'Z') @ INNER_SCALE_MATRIX_CCW,
+    # })
+    # # --> SRID
+    # POLY_OVERRIDES[28].update({
+    #     "grid_origin": [
+    #         int(-POLY_OVERRIDES[2]['grid_origin'][0]),
+    #         int(-POLY_OVERRIDES[2]['grid_origin'][1])
+    #     ],
+    #     "grid_matrix": Matrix.Rotation(- BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CCW),
+    # })
+    # # --> SRIU
+    # POLY_OVERRIDES[13].update({
+    #     "grid_origin": [
+    #         int(-POLY_OVERRIDES[26]['grid_origin'][0]),
+    #         int(-POLY_OVERRIDES[26]['grid_origin'][1])
+    #     ],
+    #     "grid_matrix": Matrix.Rotation(-pi + BIG_ANGLE, 2, 'Z') @ (INNER_SCALE_MATRIX_CW),
+    # })
 
     return POLY_OVERRIDES
 
@@ -819,11 +926,11 @@ def generate_lights_for_convex_polygon(
                |     /                 \     |             P-1: (quad left x, quad left height)
                |    o(P-1)__________(P2)o    |          <- P2: (quad right x, quad right height)
                |   / / /__|(Mv)______/ \ \   |          <- Mv: vertical margin
-               |  / / /___|(pv)_____/_\_\_\__|__
+               |  / / /___|(pv)_____/_\_\_\__|__        <- Pv: vertical padding
                | / / /* * * * * * */* *\_\_\_|__|(sv)   <- sv: vertical spacing
                |/ / /* * * * * * */* * *\ \ \|
                o_/_o(PS)*_*_*_*_*/*_*_*_*\_\_o          <- PS: (horizontal_start, vertical_start);
-              /_/_/_______|(pv)___|_|_____\_\_\         <- Pv: vertical padding
+              /_/_/_______|(pv)___|_|_____\_\_\
          (P0)o_/_/________|(Mv)___|_|______\_\_o(P1)    <- P0: (0,0); P1: (base_width, 0)
              | | |                |-|(s)   | | |        <- s: spacing
              | | |                         | | |           Ml: left margin
@@ -1220,7 +1327,7 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
         assert all(np.isclose(y_inter_3.normalized(), y_prime_sanity.normalized(), atol=ATOL))
         assert all(np.isclose(z_inter_3.normalized(), z_prime_sanity.normalized(), atol=ATOL))
     except AssertionError:
-        traceback.print_exc()
+        logging.warn(traceback.format_exc())
 
     assert all(np.isclose(x_prime.normalized(), x_prime_sanity.normalized(), atol=ATOL))
     # The following is not true if shear is applied
@@ -1236,15 +1343,27 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
 def transform_grid_pixels(pixels, grid_origin, grid_matrix):
     mat = Matrix(serialise_matrix(grid_matrix))
     orig = Vector(grid_origin)
-    return [
-        map(int, orig + (mat @ Vector(pixel)))
+    result = [
+        (*map(int, orig + (mat @ Vector(pixel))),)
         for pixel in pixels
     ]
+    if any(map(lambda x: not x, result)):
+        breakpoint()
+    return result
+
+
+def grid_project(proj_origin, position):
+    proj_phi = proj_origin.angle(Z_AXIS_3D)
+    proj_rotation = Matrix.Rotation(proj_phi, 3, 'Y')
+    relative = position + proj_origin
+    distance = relative.dot(proj_origin) / proj_origin.magnitude
+    return proj_rotation @ (relative * proj_origin.magnitude / distance - proj_origin)
 
 
 def debug_grid_info(grid_info, suffix):
     import matplotlib.pyplot as plt
     plt, ax = plt.subplots()
+    transformed_positions = {}
     for label, info in grid_info.items():
         grid_pixels = transform_grid_pixels(
             info.get('pixels', [[0, 0]]),
@@ -1252,6 +1371,13 @@ def debug_grid_info(grid_info, suffix):
             info.get("grid_matrix", [[1, 0], [0, 1]])
         )
         ax.plot(*zip(*grid_pixels), 'o-', label=label, markersize=1, linewidth=0.5)
+        for position in grid_pixels:
+            logging.debug(f"{label}: {format_vector(position)}")
+            if position in transformed_positions:
+                logging.warning(
+                    f"Duplicate position: {position} mapped by {label} and {transformed_positions[position]}")
+            else:
+                transformed_positions[position] = label
 
     handles, labels = ax.get_legend_handles_labels()
     logging.info(labels)
@@ -1275,7 +1401,8 @@ def main():
     logging.info(f"Selected object: {obj.name}")
     logging.debug(f"Object World Matrix:" + ENDLTAB + format_matrix(obj.matrix_world))
     inv_coordinate_transform = COORDINATE_TRANSFORM.inverted()
-    world_matrix = COORDINATE_TRANSFORM @ obj.matrix_world
+    # world_matrix = COORDINATE_TRANSFORM @ obj.matrix_world
+    world_matrix = obj.matrix_world
     logging.debug(f"Transformed World Matrix:" + ENDLTAB + format_matrix(world_matrix))
     with mode_set('OBJECT'):
         if not IGNORE_LAMPS:
@@ -1285,8 +1412,10 @@ def main():
             bpy.ops.object.delete({
                 "selected_objects": bpy.data.collections[DEBUG_COLLECTION_NAME].all_objects})
         led_coll = bpy.data.collections[LED_COLLECTION_NAME]
-        # debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
-        debug_coll = None
+        debug_coll = bpy.data.collections[DEBUG_COLLECTION_NAME]
+        # debug_coll = None
+
+    logging.debug("obj.rotation_mode: " + obj.rotation_mode)
 
     panels = []
     fixtures = []
@@ -1299,7 +1428,40 @@ def main():
     # ALL_GRID_PIXELS = []
     grid_info = {}
 
-    POLY_OVERRIDES = get_back_overrides()
+    if REGION_NAME == "BACK":
+        POLY_OVERRIDES = get_back_overrides()
+    else:
+        POLY_OVERRIDES = get_og_overrides()
+
+    debug_points = []
+
+    # calculate projection normal and average distance along projection vector
+    proj_normal = Vector((0, 0, 0))
+    for poly_idx, polygon in selected_polygon_enum:
+        proj_normal += world_matrix @ polygon.center
+        # debug_points.append((f"polygon_{poly_idx:02d}_center", polygon.center))
+    proj_distance = 2 * proj_normal.magnitude / len(selected_polygon_enum)
+    proj_normal = proj_normal.normalized()
+    # front is towards negative x axis, theta is angle from Z to projection normal
+    proj_theta = proj_normal.to_2d().angle_signed(-1 * X_AXIS_2D)
+    if abs(proj_theta) > ATOL:
+        logging.warn("projection vector is not perpendicular to x axis")
+    proj_phi = proj_normal.angle(Z_AXIS_3D)
+    proj_rotation = Matrix.Rotation(proj_phi, 3, 'Y')
+    inv_proj_rotation = proj_rotation.inverted()
+
+    logging.debug(
+        f"Projection Normal:" + ENDLTAB + format_vecs(proj_normal))
+
+    proj_origin = proj_normal * proj_distance
+    debug_points.append((f"proj_origin", proj_origin))
+
+    # minimal distance between adjacent projected pixels
+    min_adjacency = inf
+
+    # ############ #
+    # pixel layout #
+    # ############ #
 
     for poly_idx, polygon in selected_polygon_enum:
 
@@ -1375,20 +1537,21 @@ def main():
             logging.debug(f"overriding grid_origin ({grid_origin})")
             grid_origin = poly_overrides['grid_origin']
 
-        grid_matrix = [[1, 0], [0, 1]]
-        if 'grid_matrix' in poly_overrides:
-            logging.debug(f"overriding grid_matrix ({grid_matrix})")
-            grid_matrix = poly_overrides['grid_matrix']
+        # grid_matrix = [[1, 0], [0, 1]]
+        # if 'grid_matrix' in poly_overrides:
+        #     logging.debug(f"overriding grid_matrix ({grid_matrix})")
+        #     grid_matrix = poly_overrides['grid_matrix']
 
         panel['spacing'] = info['spacing']
         fixture['parameters']['rowSpacing'] = info['spacing'][0]
         fixture['parameters']['columnSpacing'] = info['spacing'][1]
         fixture['parameters']['rowShear'] = info['spacing'][2]
 
-        panel_pixel_matrix = panel_matrix @ info['transformation']
+        panel_pixel_matrix = COORDINATE_TRANSFORM @ panel_matrix @ info['transformation']
 
         panel_loc, panel_yaw, panel_pitch, panel_roll = \
-            lx_decompose(panel_pixel_matrix, debug_coll=debug_coll)
+            lx_decompose(panel_pixel_matrix, debug_coll=None)
+        # lx_decompose(panel_pixel_matrix, debug_coll=debug_coll)
         panel['location'] = serialise_vector(panel_loc)
         fixture['parameters']['x'] = panel_loc.x
         fixture['parameters']['y'] = panel_loc.y
@@ -1403,10 +1566,10 @@ def main():
         panel['matrix'] = serialise_matrix(panel_pixel_matrix)
         panel['pixels'] = serialise_matrix(pixels)
         fixture['parameters']['pointIndicesJSON'] = repr(serialise_matrix(pixels)).replace(' ', '')
-        fixture['parameters']['globalGridMatrix'] = repr(
-            serialise_matrix(grid_matrix)).replace(' ', '')
-        fixture['parameters']['globalGridOriginX'] = grid_origin[0]
-        fixture['parameters']['globalGridOriginY'] = grid_origin[1]
+        # fixture['parameters']['globalGridMatrix'] = repr(
+        #     serialise_matrix(grid_matrix)).replace(' ', '')
+        # fixture['parameters']['globalGridOriginX'] = grid_origin[0]
+        # fixture['parameters']['globalGridOriginY'] = grid_origin[1]
 
         panel_pixel_vertices = [
             info['inv_transformation'] @ vertex for vertex in panel_vertices
@@ -1418,10 +1581,24 @@ def main():
         fixture['parameters'].update(poly_fix_overrides)
         fixtures.append(fixture)
 
+        proj_pixels = []
+        for light_idx, position in enumerate(pixels):
+            norm_position = info['transformation'] @ Vector((position[0], position[1], 0))
+            logging.debug('\t' + format_vector(norm_position))
+            proj_position = grid_project(proj_origin, panel_matrix @ norm_position)
+            # position = panel_matrix @ norm_position
+            # position = position + proj_origin
+            # distance = position.dot(proj_normal)
+            # proj_position = proj_rotation @ (position * proj_distance / distance - proj_origin)
+            proj_pixels.append(proj_position)
+
+        for (pixel_a, pixel_b) in windowed(proj_pixels, 2):
+            min_adjacency = min(min_adjacency, (pixel_a - pixel_b).magnitude)
+
         grid_info[fixture['parameters']['label']] = {
             'pixels': pixels,
-            'grid_origin': grid_origin,
-            'grid_matrix': grid_matrix
+            # 'grid_origin': grid_origin,
+            # 'grid_matrix': grid_matrix
         }
 
         if IGNORE_LAMPS:
@@ -1437,9 +1614,118 @@ def main():
             lamp_data.energy = 1.0
             lamp_object = bpy.data.objects.new(name=f"{name} object", object_data=lamp_data)
             norm_position = info['transformation'] @ Vector((position[0], position[1], 0))
-            logging.debug('\t' + format_vector(norm_position))
-            lamp_object.location = inv_coordinate_transform @ panel_matrix @ norm_position
+            position = panel_matrix @ norm_position
+            lamp_object.location = position
             led_coll.objects.link(lamp_object)
+
+    logging.debug(f"min_adjacency: {min_adjacency}")
+
+    # ########### #
+    # grid pixels #
+    # ########### #
+
+    quantization = min_adjacency / 2
+    for fixture, panel in zip(fixtures, panels):
+        matrix = inv_coordinate_transform @ Matrix(panel['matrix'])
+        proj_grid_origin = grid_project(proj_origin, matrix @ Vector((0, 0, 0)))
+        # world_grid_origin = matrix @ Vector((0, 0, 0)) + proj_origin
+        # distance = world_grid_origin.dot(proj_normal)
+        # proj_grid_origin = proj_rotation @ (world_grid_origin * proj_distance / distance - proj_origin)
+        # debug_points.append((f"panel_{fixture['parameters']['label']}_origin", proj_grid_origin))
+        proj_grid_origin = proj_grid_origin / quantization
+        grid_origin = Vector((-proj_grid_origin.y, proj_grid_origin.x))
+        grid_origin = Vector((int(grid_origin.x), int(grid_origin.y)))
+        # grid_origin = Vector((-int(round(proj_grid_origin.y)), int(round(proj_grid_origin.x))))
+
+        max_x_pixel = None
+        max_y_pixel = None
+        for pixel in panel['pixels']:
+            if max_x_pixel is None or pixel[0] > max_x_pixel[0]:
+                max_x_pixel = pixel
+            if max_y_pixel is None or pixel[1] > max_y_pixel[1]:
+                max_y_pixel = pixel
+
+        proj_grid_x = grid_project(
+            proj_origin, matrix @ Vector((max_x_pixel[0], max_x_pixel[1], 0)))
+        # debug_points.append((f"panel_{fixture['parameters']['label']}_x", proj_grid_x))
+        proj_grid_x = proj_grid_x / quantization
+        grid_x = Vector((-proj_grid_x.y, proj_grid_x.x)) - grid_origin
+
+        proj_grid_y = grid_project(
+            proj_origin, matrix @ Vector((max_y_pixel[0], max_y_pixel[1], 0)))
+        # debug_points.append((f"panel_{fixture['parameters']['label']}_y", proj_grid_y))
+        proj_grid_y = proj_grid_y / quantization
+        grid_y = Vector((-proj_grid_y.y, proj_grid_y.x)) - grid_origin
+
+        grid_solution = np.linalg.solve(
+            np.array([
+                [max_x_pixel[0], max_x_pixel[1], 0, 0],
+                [0, 0, max_x_pixel[0], max_x_pixel[1]],
+                [max_y_pixel[0], max_y_pixel[1], 0, 0],
+                [0, 0, max_y_pixel[0], max_y_pixel[1]],
+            ]),
+            np.array([
+                grid_x[0],
+                grid_x[1],
+                grid_y[0],
+                grid_y[1]
+            ])
+        )
+
+        inner_quantization = 1e-1
+
+        def quantize(f):
+            if abs(f) - int(f) < inner_quantization:
+                return int(f)
+            return f
+
+        grid_matrix = Matrix([
+            [grid_solution[0], quantize(grid_solution[1])],
+            [quantize(grid_solution[2]), grid_solution[3]],
+        ])
+        logging.debug(format_matrix(grid_matrix, name="Grid Matrix"))
+        # grid_matrix = Matrix([
+        #     [grid_x[0], grid_y[0]],
+        #     [grid_x[1], grid_y[1]],
+        # ])
+
+        grid_x_validation = grid_matrix @ Vector(max_x_pixel)
+        if (grid_x_validation - grid_x).magnitude > inner_quantization:
+            logging.warn(
+                f"matrix does not grid_x correctly. Expected {grid_x}, got {grid_x_validation}")
+        grid_y_validation = grid_matrix @ Vector(max_y_pixel)
+        if (grid_y_validation - grid_y).magnitude > inner_quantization:
+            logging.warn(
+                f"matrix does not grid_y correctly. Expected {grid_y}, got {grid_y_validation}")
+
+        logging.debug(f"panel {fixture['parameters']['label']} gridpoints: " + ENDLTAB \
+            + ENDLTAB.join([
+                f"{n:8s}: {format_vector(p)} -> {format_vector(g)}" for n, p, g in [
+                ("origin", [0, 0], grid_origin),
+                ("max_x", max_x_pixel, grid_x),
+                ("max_y", max_y_pixel, grid_y)
+            ]]))
+        fixture['parameters']['globalGridMatrix'] = repr(
+            serialise_matrix(grid_matrix)).replace(' ', '')
+        fixture['parameters']['globalGridOriginX'] = grid_origin[0]
+        fixture['parameters']['globalGridOriginY'] = grid_origin[1]
+        grid_info[fixture['parameters']['label']]['grid_origin'] = grid_origin
+        grid_info[fixture['parameters']['label']]['grid_matrix'] = grid_matrix
+
+    if debug_coll:
+        with mode_set('OBJECT'):
+            for name, point in debug_points:
+                debug_verts = [
+                    ORIGIN_3D,
+                    point + ORIGIN_3D
+                ]
+                debug_edges = [
+                    (0, 1)
+                ]
+                debug_mesh = bpy.data.meshes.new(f"mesh_{name}")
+                debug_mesh.from_pydata(debug_verts, debug_edges, [])
+                debug_obj = bpy.data.objects.new(name, debug_mesh)
+                debug_coll.objects.link(debug_obj)
 
     logging.info(f"exporting {len(panels)} {EXPORT_TYPE.lower()}")
     export_json(get_out_path(obj, suffix), {EXPORT_TYPE.lower(): panels})
