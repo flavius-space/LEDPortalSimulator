@@ -12,3 +12,4 @@ out
 project.lxp
 *.log
 .project
+*/__pycache__

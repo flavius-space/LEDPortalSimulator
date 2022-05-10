@@ -3,11 +3,6 @@ Script which uses the Blender API to generate a set of lights for all selected p
 currently selected mesh group. Optionally places lights in the blender scene for preview.
 
 Light placement works on any coplanar tri / quad polygon, and is highly configurable.
-
-TODO:
-- make the following configurable in object properties:
-    - LED_SPACING
-    - controller info (channel number, IP)
 """
 
 import imp
@@ -22,6 +17,7 @@ from math import acos, asin, ceil, copysign, floor, inf, isinf, nan, pi, sin, sq
 from pprint import pformat
 import traceback
 import shutil
+import tempfile
 
 import bpy
 import numpy as np
@@ -1327,7 +1323,7 @@ def lx_decompose(matrix, basis_transform=None, debug_coll=None):
         assert all(np.isclose(y_inter_3.normalized(), y_prime_sanity.normalized(), atol=ATOL))
         assert all(np.isclose(z_inter_3.normalized(), z_prime_sanity.normalized(), atol=ATOL))
     except AssertionError:
-        logging.warn(traceback.format_exc())
+        logging.warning(traceback.format_exc())
 
     assert all(np.isclose(x_prime.normalized(), x_prime_sanity.normalized(), atol=ATOL))
     # The following is not true if shear is applied
@@ -1374,7 +1370,7 @@ def debug_grid_info(grid_info, suffix):
         for position in grid_pixels:
             logging.debug(f"{label}: {format_vector(position)}")
             if position in transformed_positions:
-                logging.warning(
+                logging.warninging(
                     f"Duplicate position: {position} mapped by {label} and {transformed_positions[position]}")
             else:
                 transformed_positions[position] = label
@@ -1389,8 +1385,9 @@ def debug_grid_info(grid_info, suffix):
     ax.legend(handles, labels, loc='center left', bbox_to_anchor=(1, 0.5))
     # plt.show()
     ax.axis('scaled')
-    plt.savefig("/tmp/mapping.png", dpi=1000)
-    shutil.move('/tmp/mapping.png', f'mapping_{suffix}.png')
+    tmp_fig = os.path.join(tempfile.gettempdir(), 'mapping.png')
+    plt.savefig(tmp_fig, dpi=1000)
+    shutil.move(tmp_fig, f'mapping_{suffix}.png')
 
 
 def main():
@@ -1445,7 +1442,7 @@ def main():
     # front is towards negative x axis, theta is angle from Z to projection normal
     proj_theta = proj_normal.to_2d().angle_signed(-1 * X_AXIS_2D)
     if abs(proj_theta) > ATOL:
-        logging.warn("projection vector is not perpendicular to x axis")
+        logging.warning("projection vector is not perpendicular to x axis")
     proj_phi = proj_normal.angle(Z_AXIS_3D)
     proj_rotation = Matrix.Rotation(proj_phi, 3, 'Y')
     inv_proj_rotation = proj_rotation.inverted()
@@ -1691,11 +1688,11 @@ def main():
 
         grid_x_validation = grid_matrix @ Vector(max_x_pixel)
         if (grid_x_validation - grid_x).magnitude > inner_quantization:
-            logging.warn(
+            logging.warning(
                 f"matrix does not grid_x correctly. Expected {grid_x}, got {grid_x_validation}")
         grid_y_validation = grid_matrix @ Vector(max_y_pixel)
         if (grid_y_validation - grid_y).magnitude > inner_quantization:
-            logging.warn(
+            logging.warning(
                 f"matrix does not grid_y correctly. Expected {grid_y}, got {grid_y_validation}")
 
         logging.debug(f"panel {fixture['parameters']['label']} gridpoints: " + ENDLTAB \

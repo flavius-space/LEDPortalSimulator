@@ -154,11 +154,11 @@ def setup_logger(log_file=None, stream_log_level=None, file_log_level=None):
         file_handler = logging.FileHandler(log_file, 'w')
         file_handler.setLevel(file_log_level)
         logger.addHandler(file_handler)
-    if os.name != 'nt':
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(stream_log_level)
-        stream_handler.setFormatter(coloredlogs.ColoredFormatter(LOG_STREAM_FMT))
-        logger.addHandler(stream_handler)
+    # if os.name != 'nt':
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(stream_log_level)
+    stream_handler.setFormatter(coloredlogs.ColoredFormatter(LOG_STREAM_FMT))
+    logger.addHandler(stream_handler)
 
 
 def serialise_vector(vec):
@@ -224,4 +224,4 @@ def get_selected_polygons_suffix(obj, type_plural='polygons'):
         return polygon_enum, suffix
     logging.info(f"collection: {obj.users_collection}")
     logging.info(f"Selected Polygons: \n{pformat(obj.data.polygons)}")
-    return enumerate(obj.data.polygons), suffix
+    return list(enumerate(obj.data.polygons)), suffix

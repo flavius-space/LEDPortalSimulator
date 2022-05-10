@@ -28,12 +28,28 @@ Determine your blender Python location, and add it to your `.vscode/settings.jso
 ```json
 {
   ...
-  "python.pythonPath": "/Applications/Blender.app/Contents/Resources/2.80/python/bin/python3.7m"
+  "python.pythonPath": "/Applications/Blender.app/Contents/Resources/2.80/python/bin/python3.7m",
+  # on windows
+  "python.pythonPath": "C:\\Program Files\\Blender Foundation\\Blender 3.1\\3.1\\python\\bin\\python.exe"
 }
 ```
 
 To run the scripts on your model file, you will need to install the script's dependencies into
 Blender's internal Python environment.
+
+### Windows
+
+on Windows, you need to follow [these instructions](https://b3d.interplanety.org/en/installing-python-packages-with-pip-in-blender-on-windows-10/?msclkid=1069d06ad00c11eca9d7f769e923ccf2) 
+
+First, give full access to your user for the directory `C:\Program Files\Blender Foundation\Blender 3.1\3.1\python\lib\site-packages`
+
+then
+
+```powershell
+& "C:\Program Files\Blender Foundation\Blender 3.1\3.1\python\bin\python.exe" -m pip install -r tools/requirements.txt --target "C:\Program Files\Blender Foundation\Blender 3.1\3.1\python\lib\site-packages"
+```
+
+### MacOS
 
 ```bash
 /Applications/Blender.app/Contents/Resources/2.80/python/bin/python3.7m -m pip install -r tools/requirements.txt

@@ -4,7 +4,7 @@ import imp
 import traceback
 
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
-REPO_DIR = "/Users/derwent/Documents/GitHub/LEDPortalSimulator/"
+REPO_DIR = os.getcwd()
 TOOLS_DIR = os.path.join(REPO_DIR, 'tools')
 TESTS_DIR = os.path.join(REPO_DIR, 'tests')
 
