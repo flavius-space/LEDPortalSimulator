@@ -58,9 +58,9 @@ LED_SPACING_VERTICAL = None
 EXPORT_TYPE = 'P'
 IGNORE_LAMPS = False
 # IGNORE_LAMPS = True
-REGION_NAME = None
 # REGION_NAME = "BACK"
-REGION_NAME = "OG"
+# REGION_NAME = "OG"
+REGION_NAME = "HEX"
 
 # Makex axes in blender match LX
 # COORDINATE_TRANSFORM = Matrix([
@@ -78,30 +78,8 @@ COORDINATE_TRANSFORM = Matrix([
     [0, 0, 0, 1]
 ])
 
-# LED_CONFIG = 'LedPortal'
-LED_CONFIG = 'TeleCortex'
-
-if LED_CONFIG == 'LedPortal':
-    LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
-    WIRING_SERPENTINE = True
-    GRID_GRADIENT = sqrt(3)
-    LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
-    WIRING_REVERSE = False
-    # LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
-    # Z_OFFSET = -0.1
-    Z_OFFSET = 0
-elif LED_CONFIG == 'TeleCortex':
-    LED_SPACING = 1.0 / 16
-    WIRING_SERPENTINE = True
-    LED_SPACING_VERTICAL = 1.0 / 16
-    # LED_SPACING_VERTICAL = None
-    GRID_GRADIENT = inf
-    LED_MARGIN = 0.03
-    LED_MARGIN_VERTICAL_TOP = 0.00
-    LED_MARGIN_LEFT = 0.03
-    LED_MARGIN_RIGHT = 0.03
-    WIRING_REVERSE = True
-    Z_OFFSET = -0.02
+LED_CONFIG = 'LedPortal'
+# LED_CONFIG = 'TeleCortex'
 
 
 # Telecortex Pixel positions
@@ -118,13 +96,6 @@ TELE_POINTS_SMALL = [
     [PIX_WIDTH - x, y]
     for [x, y] in TELE_POINTS_SMALL
 ]
-
-OVERRIDES = {
-    "fixture": {
-        "port": 42069,
-        "protocol": 3
-    }
-}
 
 #########################
 # TELECORTEXT OG LAYOUT #
@@ -531,23 +502,93 @@ def get_back_overrides():
 
     return POLY_OVERRIDES
 
-# DELETEME
-# EXPORT_TYPE = 'PMIN'
-# LED_SPACING = 1.0 / 4
-# LED_SPACING_VERTICAL = None
-# LED_MARGIN = 0.05
-# LED_MARGIN_LEFT = None
-# LED_MARGIN_RIGHT = None
-# LED_MARGIN_VERTICAL_TOP = None
+def get_tele_overrides():
+    POLY_OVERRIDES = {
+        0: {
+            "fixture": {
+                "label": "TR",
+                "artNetUniverse": 1,
+            }
+        },
+        1: {
+            "fixture": {
+                "label": "TC",
+                "artNetUniverse": 3,
+            }
+        },
+        2: {
+            "fixture": {
+                "label": "TL",
+                "artNetUniverse": 5,
+            }
+        },
+        3: {
+            "fixture": {
+                "label": "BL",
+                "artNetUniverse": 7,
+            }
+        },
+        4: {
+            "fixture": {
+                "label": "BC",
+                "artNetUniverse": 9,
+            }
+        },
+        5: {
+            "fixture": {
+                "label": "BR",
+                "artNetUniverse": 11,
+            }
+        },
+    }
+    return POLY_OVERRIDES
 
+IDX_OFFSET = 1
 
-# def plot_vecs_2d(vecs):
-#     logging.info(f"plotting: " + str(vecs))
-#     # vecs = [vec.to_2d() for vec in vecs]
-#     # logging.info(f"plotting:" + ENDLTAB + ENDLTAB.join(map(format_vector, vecs)))
-#     import matplotlib.pyplot as plt
-#     plt.plot(*zip(*(vecs + [(0, 0)])), 'o-')
-#     plt.show()
+if LED_CONFIG == 'LedPortal':
+    LED_SPACING = 1.22 * 2 / (sqrt(3) * 26)  # = 0.054182102
+    WIRING_SERPENTINE = True
+    GRID_GRADIENT = sqrt(3)
+    LED_MARGIN = abs(gradient_sin(GRID_GRADIENT) * LED_SPACING)
+    WIRING_REVERSE = False
+    # LED_SPACING_VERTICAL = 1.22 / 26  # = 0.046923077
+    # Z_OFFSET = -0.1
+    Z_OFFSET = 0
+
+    OVERRIDES = {
+        "fixture": {
+            "host": "192.168.1.15",
+            "protocol": 2,  # artnet
+        }
+    }
+
+    POLY_OVERRIDES = get_tele_overrides()
+
+    IDX_OFFSET = 100
+elif LED_CONFIG == 'TeleCortex':
+    LED_SPACING = 1.0 / 16
+    WIRING_SERPENTINE = True
+    LED_SPACING_VERTICAL = 1.0 / 16
+    # LED_SPACING_VERTICAL = None
+    GRID_GRADIENT = inf
+    LED_MARGIN = 0.03
+    LED_MARGIN_VERTICAL_TOP = 0.00
+    LED_MARGIN_LEFT = 0.03
+    LED_MARGIN_RIGHT = 0.03
+    WIRING_REVERSE = True
+    Z_OFFSET = -0.02
+
+    OVERRIDES = {
+        "fixture": {
+            "port": 42069,
+            "protocol": 3  # opc
+        }
+    }
+
+    if REGION_NAME == "BACK":
+        POLY_OVERRIDES = get_back_overrides()
+    else:
+        POLY_OVERRIDES = get_og_overrides()
 
 
 def orientation(*vecs):
@@ -1370,7 +1411,7 @@ def debug_grid_info(grid_info, suffix):
         for position in grid_pixels:
             logging.debug(f"{label}: {format_vector(position)}")
             if position in transformed_positions:
-                logging.warninging(
+                logging.warning(
                     f"Duplicate position: {position} mapped by {label} and {transformed_positions[position]}")
             else:
                 transformed_positions[position] = label
@@ -1425,11 +1466,6 @@ def main():
     # ALL_GRID_PIXELS = []
     grid_info = {}
 
-    if REGION_NAME == "BACK":
-        POLY_OVERRIDES = get_back_overrides()
-    else:
-        POLY_OVERRIDES = get_og_overrides()
-
     debug_points = []
 
     # calculate projection normal and average distance along projection vector
@@ -1468,7 +1504,7 @@ def main():
             **POLY_OVERRIDES.get(poly_idx, {}).get('fixture', {})
         }
 
-        name = f"{sanitise_names(obj.name)}.{EXPORT_TYPE}[{poly_idx}]"
+        name = f"[{poly_idx}]"
         logging.info(f"polygon name: {name}")
 
         panel = {
@@ -1476,7 +1512,7 @@ def main():
         }
 
         fixture = {
-            "id": poly_idx + 1,
+            "id": poly_idx + IDX_OFFSET,
             "class": "flavius.ledportal.structure.LPPanelFixture",
             "parameters": {
                 "label": name,
